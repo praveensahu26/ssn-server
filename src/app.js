@@ -4,7 +4,9 @@ const express = require('express');
 const helmet = require('helmet');
 const httpStatus = require('http-status');
 
+const { errorConverter, errorHandler } = require('./middlewares/error');
 const v1Routes = require('./routes/v1');
+const { sendError } = require('./utils/response');
 
 const app = express();
 
@@ -18,7 +20,10 @@ app.use(compression());
 app.use('/v1', v1Routes);
 
 app.use((req, res) => {
-  res.status(httpStatus.NOT_FOUND).send({ message: 'Not found' });
+  sendError(res, httpStatus.NOT_FOUND, 'Not found');
 });
+
+app.use(errorConverter);
+app.use(errorHandler);
 
 module.exports = app;
