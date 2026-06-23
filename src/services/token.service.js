@@ -1,8 +1,10 @@
+const httpStatus = require('http-status');
 const jwt = require('jsonwebtoken');
 const moment = require('moment');
 
 const config = require('../config/config');
 const { Token } = require('../models');
+const ApiError = require('../utils/ApiError');
 
 const tokenTypes = {
   ACCESS: 'access',
@@ -50,9 +52,30 @@ const generateAuthTokens = async (user) => {
   };
 };
 
+const verifyToken = async (token, type) => {
+  let payload;
+  try {
+    payload = jwt.verify(token, config.jwt.secret);
+  } catch (err) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired token');
+  }
+
+  if (payload.type !== type) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token type');
+  }
+
+  const tokenDoc = await Token.findOne({ token, type, user: payload.sub, blacklisted: false });
+  if (!tokenDoc) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Token not found');
+  }
+
+  return tokenDoc;
+};
+
 module.exports = {
   generateAuthTokens,
   generateToken,
   saveToken,
   tokenTypes,
+  verifyToken,
 };

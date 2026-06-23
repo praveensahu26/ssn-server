@@ -42,6 +42,15 @@ const requireSuperAdmin = (req, res, next) => {
   return next(new ApiError(httpStatus.FORBIDDEN, 'Super admin access required'));
 };
 
+const authorize =
+  (...roles) =>
+  (req, res, next) => {
+    if (req.user && roles.includes(req.user.role)) {
+      return next();
+    }
+    return next(new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to perform this action'));
+  };
+
 const checkPermission = (permission) => (req, res, next) => {
   if (req.user && req.user.hasPermission(permission)) {
     return next();
@@ -51,6 +60,7 @@ const checkPermission = (permission) => (req, res, next) => {
 
 module.exports = {
   authenticate,
+  authorize,
   checkPermission,
   requireAdmin,
   requireSuperAdmin,

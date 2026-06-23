@@ -23,15 +23,63 @@ const userSchema = mongoose.Schema(
         }
       },
     },
+    mobile: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+    },
     password: {
       type: String,
-      required: true,
+      // Only local accounts have a password; social (e.g. Google) accounts don't.
+      required: function requiredPassword() {
+        return this.authProvider === 'local';
+      },
       private: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     role: {
       type: String,
-      enum: ['admin', 'manager', 'operator', 'user'],
+      enum: ['admin', 'manager', 'operator', 'user', 'reporter', 'reporter_pending'],
       default: 'user',
+    },
+    avatar: {
+      type: String,
+      default: null,
+    },
+    followedCategories: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'Category',
+      },
+    ],
+    reporterProfile: {
+      documents: {
+        type: [String],
+        default: [],
+      },
+      approvalStatus: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending',
+      },
+      appliedAt: {
+        type: Date,
+        default: null,
+      },
+      rejectionReason: {
+        type: String,
+        default: null,
+      },
     },
     isSuperAdmin: {
       type: Boolean,
@@ -43,7 +91,7 @@ const userSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'inactive', 'suspended'],
+      enum: ['active', 'inactive', 'suspended', 'blocked'],
       default: 'active',
     },
     otp: {
@@ -74,6 +122,11 @@ userSchema.plugin(toJSON);
 
 userSchema.statics.isEmailTaken = async function isEmailTaken(email, excludeUserId) {
   const user = await this.findOne({ email: email.toLowerCase() });
+  return !!user && (!excludeUserId || user.id !== excludeUserId);
+};
+
+userSchema.statics.isMobileTaken = async function isMobileTaken(mobile, excludeUserId) {
+  const user = await this.findOne({ mobile });
   return !!user && (!excludeUserId || user.id !== excludeUserId);
 };
 
