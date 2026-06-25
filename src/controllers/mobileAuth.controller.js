@@ -5,31 +5,37 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/response');
 
+// Onboarding gates the client needs after a login: has the user filled in mobile/gender,
+// and have they picked at least one topic to follow.
+const buildOnboardingFlags = (user) => ({
+  isProfilePending: !user.mobile || !user.gender,
+  isTopicsSelectionPending: user.followedCategories.length === 0,
+});
+
 const register = catchAsync(async (req, res) => {
-  const user = await mobileAuthService.register(req.body);
-  const tokens = await tokenService.generateAuthTokens(user);
+  const user = await mobileAuthService.register(req.user, req.body);
 
   const message =
     user.role === 'reporter_pending'
-      ? 'Registration successful. Your reporter application is pending admin approval.'
-      : 'Registration successful';
+      ? 'Profile updated successfully. Your reporter application is pending admin approval.'
+      : 'Profile updated successfully';
 
-  sendSuccess(res, httpStatus.CREATED, message, { user, tokens });
+  sendSuccess(res, httpStatus.OK, message, { user });
 });
 
 const login = catchAsync(async (req, res) => {
-  const { identifier, password } = req.body;
-  const user = await mobileAuthService.loginUserWithEmailOrMobile(identifier, password);
+  const { identifier, otp } = req.body;
+  const user = await mobileAuthService.loginUserWithOtp(identifier, otp);
   const tokens = await tokenService.generateAuthTokens(user);
 
-  sendSuccess(res, httpStatus.OK, 'Logged in successfully', { user, tokens });
+  sendSuccess(res, httpStatus.OK, 'Logged in successfully', { tokens, ...buildOnboardingFlags(user) });
 });
 
 const googleLogin = catchAsync(async (req, res) => {
   const user = await mobileAuthService.loginWithGoogle(req.body.idToken);
   const tokens = await tokenService.generateAuthTokens(user);
 
-  sendSuccess(res, httpStatus.OK, 'Logged in successfully', { user, tokens });
+  sendSuccess(res, httpStatus.OK, 'Logged in successfully', { tokens, ...buildOnboardingFlags(user) });
 });
 
 const refreshToken = catchAsync(async (req, res) => {

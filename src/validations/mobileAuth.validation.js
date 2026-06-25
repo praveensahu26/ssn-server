@@ -9,22 +9,18 @@ const register = {
     mobile: Joi.string()
       .pattern(/^[0-9]{7,15}$/)
       .messages({ 'string.pattern.base': 'mobile must be 7 to 15 digits' }),
-    password,
-    role: Joi.string().valid('user', 'reporter').default('user'),
-    documents: Joi.array()
-      .items(Joi.string())
-      .when('role', {
-        is: 'reporter',
-        then: Joi.array().items(Joi.string()),
-        otherwise: Joi.forbidden(),
-      }),
+    gender: Joi.string().valid('male', 'female', 'other', 'prefer_not_to_say'),
+    // Present only when the caller is applying as a reporter.
+    journalistId: Joi.string().trim(),
   }),
 };
 
 const login = {
   body: Joi.object().keys({
     identifier: Joi.string().required().messages({ 'any.required': 'email or mobile is required' }),
-    password: Joi.string().required(),
+    otp: Joi.string()
+      .pattern(/^\d{6}$/)
+      .required(),
   }),
 };
 
@@ -85,6 +81,7 @@ const updateProfile = {
     .keys({
       name: Joi.string().trim(),
       avatar: Joi.string().uri(),
+      gender: Joi.string().valid('male', 'female', 'other', 'prefer_not_to_say'),
       mobile: Joi.string()
         .pattern(/^[0-9]{7,15}$/)
         .messages({ 'string.pattern.base': 'mobile must be 7 to 15 digits' }),

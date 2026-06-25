@@ -39,7 +39,7 @@ const userSchema = mongoose.Schema(
     },
     authProvider: {
       type: String,
-      enum: ['local', 'google'],
+      enum: ['local', 'google', 'apple', 'facebook'],
       default: 'local',
     },
     googleId: {
@@ -52,25 +52,99 @@ const userSchema = mongoose.Schema(
       enum: ['admin', 'manager', 'operator', 'user', 'reporter', 'reporter_pending'],
       default: 'user',
     },
+    isReporter: {
+      type: Boolean,
+      default: false,
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other', 'prefer_not_to_say'],
+      default: null,
+    },
+    bio: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     avatar: {
       type: String,
       default: null,
     },
+    coverPhoto: {
+      type: String,
+      default: null,
+    },
+    liveCaption: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    liveUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    location: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    privacySettings: {
+      profileVisibility: {
+        type: String,
+        enum: ['everyone', 'connections_only', 'private'],
+        default: 'everyone',
+      },
+      whoCanComment: {
+        type: String,
+        enum: ['public', 'connections_only', 'private'],
+        default: 'public',
+      },
+      commentsEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      whoCanSharePosts: {
+        type: String,
+        enum: ['public', 'connections_only', 'private'],
+        default: 'public',
+      },
+    },
+    preferences: {
+      language: {
+        type: String,
+        default: 'en',
+      },
+    },
+    blockedUsers: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
     followedCategories: [
       {
         type: mongoose.SchemaTypes.ObjectId,
         ref: 'Category',
       },
     ],
+    isTopicsSelected: {
+      type: Boolean,
+      default: false,
+    },
     reporterProfile: {
+      journalistId: {
+        type: String,
+        default: null,
+      },
       documents: {
         type: [String],
         default: [],
       },
       approvalStatus: {
         type: String,
-        enum: ['pending', 'approved', 'rejected'],
-        default: 'pending',
+        enum: [null, 'pending', 'approved', 'rejected'],
+        default: null,
       },
       appliedAt: {
         type: Date,

@@ -1,0 +1,941 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Social News API",
+    "version": "1.0.0",
+    "description": "REST API for the Social News App. Two clients consume it: the **Mobile App** (users + reporters) and the **Web Admin Panel** (admins). This spec covers only endpoints that are actually implemented in this codebase (see `src/routes/v1`).\n\n**Response envelope** — every success response has the shape `{ success: true, statusCode, message, data }`. Every error response has the shape `{ success: false, statusCode, message }`.\n\n**Known gaps (not yet fixed, documented here so integrators aren't surprised):**\n- `GET /news/:id` has no auth gate, so an owner/admin viewing their own non-public post gets 404 instead of 200.\n- `/admin/categories/*` currently has NO auth gate at all (`requireAdmin` is commented out in the route file) — anyone can call it.\n- Category-follow based feed filtering on `GET /news` has a known logic bug."
+  },
+  "servers": [
+    { "url": "/v1", "description": "API base path" }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Service health check" },
+    { "name": "Mobile Auth", "description": "Mobile app registration & login (users + reporters)" },
+    { "name": "Mobile Profile", "description": "Own profile, mobile app" },
+    { "name": "Reporter Onboarding", "description": "Apply to become a reporter" },
+    { "name": "Categories", "description": "Public/mobile category listing & follow" },
+    { "name": "News", "description": "Posts: create, feed, reactions, comments (shared by mobile users/reporters and admin)" },
+    { "name": "Campaigns", "description": "Crowdfunding campaigns: create, discover, donate (mobile)" },
+    { "name": "Settings", "description": "Account/profile/privacy/preferences settings, mobile app" },
+    { "name": "Admin Auth", "description": "Web admin panel login" },
+    { "name": "Admin Categories", "description": "Admin CRUD for categories" },
+    { "name": "Admin Campaigns", "description": "Admin moderation of campaigns" },
+    { "name": "Stripe Webhook", "description": "Stripe payment webhook (server-to-server, unauthenticated, signature-verified)" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Send the access token as `Authorization: Bearer <accessToken>`."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "statusCode": { "type": "integer", "example": 400 },
+          "message": { "type": "string", "example": "Validation error message" }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 20 },
+          "total": { "type": "integer", "example": 42 },
+          "totalPages": { "type": "integer", "example": 3 }
+        }
+      },
+      "Tokens": {
+        "type": "object",
+        "properties": {
+          "access": {
+            "type": "object",
+            "properties": {
+              "token": { "type": "string" },
+              "expires": { "type": "string", "format": "date-time" }
+            }
+          },
+          "refresh": {
+            "type": "object",
+            "properties": {
+              "token": { "type": "string" },
+              "expires": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "665f1c2e8b1c9a0012ab34cd" },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "mobile": { "type": "string", "nullable": true },
+          "authProvider": { "type": "string", "enum": ["local", "google", "apple", "facebook"] },
+          "role": { "type": "string", "enum": ["admin", "manager", "operator", "user", "reporter", "reporter_pending"] },
+          "gender": { "type": "string", "enum": ["male", "female", "other", "prefer_not_to_say"], "nullable": true },
+          "bio": { "type": "string", "nullable": true },
+          "avatar": { "type": "string", "nullable": true },
+          "coverPhoto": { "type": "string", "nullable": true },
+          "liveCaption": { "type": "string", "nullable": true },
+          "liveUrl": { "type": "string", "nullable": true },
+          "location": { "type": "string", "nullable": true },
+          "privacySettings": {
+            "type": "object",
+            "properties": {
+              "profileVisibility": { "type": "string", "enum": ["everyone", "connections_only", "private"] },
+              "whoCanComment": { "type": "string", "enum": ["public", "connections_only", "private"] },
+              "commentsEnabled": { "type": "boolean" },
+              "whoCanSharePosts": { "type": "string", "enum": ["public", "connections_only", "private"] }
+            }
+          },
+          "preferences": {
+            "type": "object",
+            "properties": { "language": { "type": "string", "example": "en" } }
+          },
+          "followedCategories": { "type": "array", "items": { "type": "string" } },
+          "isTopicsSelected": { "type": "boolean", "description": "Set true once the user completes POST/PUT /categories/assign/{userId} (onboarding topics step)" },
+          "blockedUsers": { "type": "array", "items": { "type": "string" } },
+          "reporterProfile": {
+            "type": "object",
+            "properties": {
+              "journalistId": { "type": "string", "nullable": true },
+              "documents": { "type": "array", "items": { "type": "string" } },
+              "approvalStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+              "appliedAt": { "type": "string", "format": "date-time", "nullable": true },
+              "rejectionReason": { "type": "string", "nullable": true }
+            }
+          },
+          "isSuperAdmin": { "type": "boolean" },
+          "isVerified": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["active", "inactive", "suspended", "blocked"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "News": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "author": { "type": "string", "description": "User id, populated with name/avatar/role on list/detail views" },
+          "type": { "type": "string", "enum": ["image", "video"] },
+          "mediaUrl": { "type": "string" },
+          "caption": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "category": { "type": "string" },
+          "location": {
+            "type": "object",
+            "properties": {
+              "lat": { "type": "number", "nullable": true },
+              "lng": { "type": "number", "nullable": true },
+              "city": { "type": "string", "nullable": true },
+              "state": { "type": "string", "nullable": true },
+              "country": { "type": "string", "nullable": true }
+            }
+          },
+          "status": { "type": "string", "enum": ["public", "flagged", "deleted"] },
+          "likesCount": { "type": "integer" },
+          "dislikesCount": { "type": "integer" },
+          "commentsCount": { "type": "integer" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "news": { "type": "string" },
+          "author": { "type": "string" },
+          "text": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Campaign": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "organizer": { "type": "string", "description": "User id, populated with name/avatar/role on list/detail views" },
+          "caption": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "category": { "type": "string", "description": "References the shared Category collection (same one used by News)" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "goalAmount": { "type": "number" },
+          "raisedAmount": { "type": "number" },
+          "donationsCount": { "type": "integer" },
+          "currency": { "type": "string", "example": "USD" },
+          "endDate": { "type": "string", "format": "date-time" },
+          "location": { "type": "string", "nullable": true },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["image", "video"] },
+                "url": { "type": "string" },
+                "key": { "type": "string" }
+              }
+            }
+          },
+          "status": { "type": "string", "enum": ["pending", "active", "rejected", "completed", "suspended"] },
+          "rejectionReason": { "type": "string", "nullable": true },
+          "suspensionReasons": { "type": "array", "items": { "type": "string" } },
+          "suspensionNote": { "type": "string", "nullable": true },
+          "viewsCount": { "type": "integer" },
+          "progressPercent": { "type": "integer", "description": "Computed: round(raisedAmount / goalAmount * 100), capped at 100" },
+          "approvedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "completedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Donation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "campaign": { "type": "string" },
+          "donor": { "type": "string" },
+          "amount": { "type": "number" },
+          "message": { "type": "string", "nullable": true },
+          "paymentMethod": { "type": "string", "enum": ["card", "google_pay", "paypal"] },
+          "status": { "type": "string", "enum": ["pending", "succeeded", "failed"] },
+          "stripePaymentIntentId": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Validation error",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "Unauthorized": {
+        "description": "Missing/invalid/expired bearer token",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "success": false, "statusCode": 401, "message": "Please authenticate" } } }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not permitted",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "Conflict": {
+        "description": "Duplicate / conflicting resource",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "example": { "status": "ok" } } } }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Register as a user or reporter",
+        "description": "Registering with `role: reporter` puts the account in `reporter_pending` until an admin approves it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "authProvider"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "mobile": { "type": "string", "pattern": "^[0-9]{7,15}$" },
+                  "gender": { "type": "string", "enum": ["male", "female", "other", "prefer_not_to_say"] },
+                  "role": { "type": "string", "enum": ["user", "reporter"], "default": "user" },
+                  "authProvider": { "type": "string", "enum": ["google", "apple", "facebook"] },
+                  "journalistId": { "type": "string", "description": "Required when role=reporter" },
+                  "documents": { "type": "array", "items": { "type": "string" }, "description": "Allowed when role=reporter" }
+                }
+              },
+              "examples": {
+                "user": { "value": { "name": "Jane Doe", "email": "jane@example.com", "mobile": "9876543210", "gender": "female", "role": "user", "authProvider": "google" } },
+                "reporter": { "value": { "name": "John Reporter", "email": "john@example.com", "role": "reporter", "authProvider": "google", "journalistId": "PRESS-12345", "documents": ["https://bucket.s3.amazonaws.com/docs/id-card.pdf"] } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "statusCode": { "type": "integer" }, "message": { "type": "string" }, "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" }, "tokens": { "$ref": "#/components/schemas/Tokens" } } } } } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Login with OTP",
+        "description": "OTP-based login. Get an OTP first via `POST /auth/forgot-password` or your own OTP-issuance flow, then exchange identifier+otp for tokens.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["identifier", "otp"], "properties": { "identifier": { "type": "string", "description": "email or mobile" }, "otp": { "type": "string", "pattern": "^\\d{6}$" } } }, "example": { "identifier": "jane@example.com", "otp": "123456" } } }
+        },
+        "responses": {
+          "200": { "description": "Logged in", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" }, "tokens": { "$ref": "#/components/schemas/Tokens" } } } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/auth/google": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Login/register via Google ID token",
+        "description": "Find-or-create on the decoded Google token's email/sub. New accounts are created immediately with `isTopicsSelected: false`; the client should follow up with POST/PUT `/categories/assign/{userId}` once the user picks topics, which flips `isTopicsSelected` to true. Pass `journalistId` (from the \"Join as Agency Reporter\" screen) to sign up as a reporter: the account is created/upgraded to `role: reporter_pending` with `reporterProfile.approvalStatus: pending` until an admin approves it (existing `reporter`/`reporter_pending` accounts are never downgraded by this).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["idToken"], "properties": { "idToken": { "type": "string" }, "journalistId": { "type": "string", "description": "Only sent on the Agency Reporter sign-up flow" } } } } } },
+        "responses": {
+          "200": { "description": "Logged in (or signed up)", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" }, "tokens": { "$ref": "#/components/schemas/Tokens" } } } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/refresh-token": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Rotate access token using a refresh token",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["refreshToken"], "properties": { "refreshToken": { "type": "string" } } } } } },
+        "responses": {
+          "200": { "description": "Token refreshed", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "tokens": { "$ref": "#/components/schemas/Tokens" } } } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Invalidate a refresh token",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["refreshToken"], "properties": { "refreshToken": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Logged out" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Send a password-reset OTP by email",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } } } } },
+        "responses": { "200": { "description": "OTP sent" }, "400": { "$ref": "#/components/responses/BadRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/auth/verify-otp": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Verify a password-reset OTP",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "otp"], "properties": { "email": { "type": "string", "format": "email" }, "otp": { "type": "string", "pattern": "^\\d{6}$" } } } } } },
+        "responses": { "200": { "description": "OTP valid" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["Mobile Auth"],
+        "summary": "Set a new password after OTP verification",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "otp", "password", "confirmPassword"], "properties": { "email": { "type": "string", "format": "email" }, "otp": { "type": "string", "pattern": "^\\d{6}$" }, "password": { "type": "string", "minLength": 8 }, "confirmPassword": { "type": "string", "description": "Must match password" } } } } } },
+        "responses": { "200": { "description": "Password reset" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/profile/me": {
+      "get": {
+        "tags": ["Mobile Profile"],
+        "summary": "Get own profile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" } } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "put": {
+        "tags": ["Mobile Profile"],
+        "summary": "Update own profile",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "minProperties": 1, "properties": { "name": { "type": "string" }, "avatar": { "type": "string", "format": "uri" }, "gender": { "type": "string", "enum": ["male", "female", "other", "prefer_not_to_say"] }, "mobile": { "type": "string", "pattern": "^[0-9]{7,15}$" } } } } } },
+        "responses": { "200": { "description": "Updated" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/reporters/apply": {
+      "post": {
+        "tags": ["Reporter Onboarding"],
+        "summary": "Apply to become a reporter",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["documents"], "properties": { "documents": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } } } },
+        "responses": { "200": { "description": "Application submitted, pending admin approval" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "List all categories",
+        "description": "Public — no auth required. Shared by News and Campaigns.",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "categories": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } } } } } } } } } }
+      }
+    },
+    "/categories/{id}/follow": {
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Follow a category",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Followed" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Unfollow a category",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Unfollowed" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/categories/assign/{userId}": {
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Set followed-categories / topics of interest (onboarding)",
+        "description": "`userId` in the path must equal the authenticated user's own id — you can only set your own interests.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["categoryIds"], "properties": { "categoryIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } } } },
+        "responses": { "200": { "description": "Assigned" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      },
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Replace followed-categories / topics of interest",
+        "description": "Same behavior as POST on this path — kept as both verbs for client convenience.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["categoryIds"], "properties": { "categoryIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } } } },
+        "responses": { "200": { "description": "Assigned" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/news": {
+      "post": {
+        "tags": ["News"],
+        "summary": "Create a news post",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["caption", "category", "media"],
+                "properties": {
+                  "caption": { "type": "string" },
+                  "description": { "type": "string" },
+                  "category": { "type": "string", "description": "Category id" },
+                  "lat": { "type": "number" },
+                  "lng": { "type": "number" },
+                  "city": { "type": "string" },
+                  "state": { "type": "string" },
+                  "country": { "type": "string" },
+                  "media": { "type": "string", "format": "binary", "description": "Single image/video file (jpeg/png/webp/gif/mp4/mov/webm, ≤200MB)" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "news": { "$ref": "#/components/schemas/News" } } } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "get": {
+        "tags": ["News"],
+        "summary": "List news posts",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "author", "in": "query", "schema": { "type": "string" } },
+          { "name": "city", "in": "query", "schema": { "type": "string" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "country", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["public", "flagged", "deleted"] } },
+          { "name": "dateFrom", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "dateTo", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "posts": { "type": "array", "items": { "$ref": "#/components/schemas/News" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/news/categories/{categoryId}": {
+      "get": {
+        "tags": ["News"],
+        "summary": "List news posts by category",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "categoryId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["public", "flagged", "deleted"] } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "posts": { "type": "array", "items": { "$ref": "#/components/schemas/News" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/news/{id}": {
+      "get": {
+        "tags": ["News"],
+        "summary": "Get a single news post",
+        "description": "No auth middleware on this route (known gap — see top-level description), so owner/admin visibility on non-public posts does not currently work.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "news": { "$ref": "#/components/schemas/News" } } } } } } } }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "delete": {
+        "tags": ["News"],
+        "summary": "Delete own news post (soft delete)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/news/{id}/like": {
+      "post": {
+        "tags": ["News"],
+        "summary": "Like a post (idempotent; switches from dislike if present)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/news/{id}/dislike": {
+      "post": {
+        "tags": ["News"],
+        "summary": "Dislike a post (idempotent; switches from like if present)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/news/{id}/reaction": {
+      "delete": {
+        "tags": ["News"],
+        "summary": "Remove own like/dislike from a post",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/news/{id}/comments": {
+      "get": {
+        "tags": ["News"],
+        "summary": "List comments on a post",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "comments": { "type": "array", "items": { "$ref": "#/components/schemas/Comment" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "post": {
+        "tags": ["News"],
+        "summary": "Add a comment to a post",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["text"], "properties": { "text": { "type": "string" } } } } } },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "comment": { "$ref": "#/components/schemas/Comment" } } } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/news/comments/{commentId}": {
+      "delete": {
+        "tags": ["News"],
+        "summary": "Delete own comment",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "commentId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/campaigns": {
+      "post": {
+        "tags": ["Campaigns"],
+        "summary": "Start a campaign",
+        "description": "Any authenticated user can organize a campaign; it stays `pending` until an admin approves it. `category` must be an id from the shared `/categories` endpoint.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["caption", "category", "goalAmount", "endDate"],
+                "properties": {
+                  "caption": { "type": "string" },
+                  "description": { "type": "string" },
+                  "category": { "type": "string", "description": "Category id from GET /categories" },
+                  "tags": { "type": "string", "description": "Comma-separated, or repeat the field for an array" },
+                  "goalAmount": { "type": "number", "exclusiveMinimum": 0 },
+                  "endDate": { "type": "string", "format": "date-time", "description": "ISO 8601, must be in the future" },
+                  "location": { "type": "string" },
+                  "attachments": { "type": "array", "items": { "type": "string", "format": "binary" }, "description": "0–5 images/videos" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Submitted for verification", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "campaign": { "$ref": "#/components/schemas/Campaign" } } } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "get": {
+        "tags": ["Campaigns"],
+        "summary": "List campaigns",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "scope", "in": "query", "schema": { "type": "string", "enum": ["discover", "mine"], "default": "discover" }, "description": "discover = public active/completed feed; mine = caller's own campaigns regardless of status" },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "active", "rejected", "completed", "suspended"] }, "description": "Only applied when scope=mine" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "campaigns": { "type": "array", "items": { "$ref": "#/components/schemas/Campaign" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/campaigns/{id}": {
+      "get": {
+        "tags": ["Campaigns"],
+        "summary": "Get a single campaign",
+        "description": "Auth optional: anonymous and non-owner/non-operator callers only see active/completed campaigns; the organizer or an admin can see their own pending/rejected/suspended campaign too.",
+        "security": [{ "bearerAuth": [] }, {}],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "campaign": { "$ref": "#/components/schemas/Campaign" } } } } } } } }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/campaigns/{id}/donate": {
+      "post": {
+        "tags": ["Campaigns"],
+        "summary": "Donate to a campaign",
+        "description": "Creates a Stripe PaymentIntent and a pending Donation. Only works on `active` campaigns. Client confirms payment using the returned `clientSecret`; the Donation is marked succeeded by the Stripe webhook.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["amount", "paymentMethod"],
+                "properties": {
+                  "amount": { "type": "number", "exclusiveMinimum": 0 },
+                  "message": { "type": "string", "maxLength": 500, "description": "Optional — shown in the public Words of Support feed" },
+                  "paymentMethod": { "type": "string", "enum": ["card", "google_pay", "paypal"] }
+                }
+              },
+              "example": { "amount": 50, "message": "Keep up the great work!", "paymentMethod": "card" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Payment intent created", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "donation": { "$ref": "#/components/schemas/Donation" }, "clientSecret": { "type": "string" } } } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/campaigns/{id}/support": {
+      "get": {
+        "tags": ["Campaigns"],
+        "summary": "List the public \"words of support\" feed for a campaign",
+        "description": "A Donation with an optional message is what powers this feed — it is not a generic comment thread.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "supporters": { "type": "array", "items": { "$ref": "#/components/schemas/Donation" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } } } } } } } }
+      }
+    },
+    "/settings/profile": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "Get own profile (settings view)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "put": {
+        "tags": ["Settings"],
+        "summary": "Update own profile",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "minProperties": 1, "properties": { "name": { "type": "string" }, "bio": { "type": "string", "nullable": true }, "gender": { "type": "string", "enum": ["male", "female", "other", "prefer_not_to_say"] }, "avatar": { "type": "string", "format": "uri", "nullable": true }, "coverPhoto": { "type": "string", "format": "uri", "nullable": true }, "liveCaption": { "type": "string", "nullable": true }, "liveUrl": { "type": "string", "format": "uri", "nullable": true }, "location": { "type": "string", "nullable": true }, "mobile": { "type": "string", "pattern": "^[0-9]{7,15}$" } } } } } },
+        "responses": { "200": { "description": "Updated" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/settings/account": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "Get account info",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/settings/account/change-password": {
+      "put": {
+        "tags": ["Settings"],
+        "summary": "Change own password",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["currentPassword", "newPassword", "confirmPassword"], "properties": { "currentPassword": { "type": "string" }, "newPassword": { "type": "string", "minLength": 8 }, "confirmPassword": { "type": "string", "description": "Must match newPassword" } } } } } },
+        "responses": { "200": { "description": "Password changed" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/settings/account/{userId}": {
+      "delete": {
+        "tags": ["Settings"],
+        "summary": "Delete (own) account",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["reason"], "properties": { "reason": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Account deleted" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/settings/privacy": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "Get privacy settings",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "put": {
+        "tags": ["Settings"],
+        "summary": "Update privacy settings",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "minProperties": 1, "properties": { "profileVisibility": { "type": "string", "enum": ["everyone", "connections_only", "private"] }, "whoCanComment": { "type": "string", "enum": ["public", "connections_only", "private"] }, "commentsEnabled": { "type": "boolean" }, "whoCanSharePosts": { "type": "string", "enum": ["public", "connections_only", "private"] } } } } } },
+        "responses": { "200": { "description": "Updated" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/settings/blocked": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "List blocked users",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/settings/blocked/{id}": {
+      "post": {
+        "tags": ["Settings"],
+        "summary": "Block a user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Blocked" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "delete": {
+        "tags": ["Settings"],
+        "summary": "Unblock a user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Unblocked" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/settings/preferences": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "Get content preferences",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "put": {
+        "tags": ["Settings"],
+        "summary": "Update content preferences",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "minProperties": 1, "properties": { "language": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Updated" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/admin/auth/login": {
+      "post": {
+        "tags": ["Admin Auth"],
+        "summary": "Admin/superadmin login",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "password"], "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string" } } }, "example": { "email": "admin@example.com", "password": "Password@123" } } } },
+        "responses": { "200": { "description": "Logged in", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" }, "tokens": { "$ref": "#/components/schemas/Tokens" } } } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/admin/auth/forgot-password": {
+      "post": {
+        "tags": ["Admin Auth"],
+        "summary": "Send a password-reset email",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } } } } },
+        "responses": { "200": { "description": "Email sent" }, "400": { "$ref": "#/components/responses/BadRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/auth/send-otp": {
+      "post": {
+        "tags": ["Admin Auth"],
+        "summary": "Send an email-verification OTP",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } } } } },
+        "responses": { "200": { "description": "OTP sent" }, "400": { "$ref": "#/components/responses/BadRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/auth/verify-otp": {
+      "post": {
+        "tags": ["Admin Auth"],
+        "summary": "Verify an OTP (email-verification or reset-password flow)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "otp", "type"], "properties": { "email": { "type": "string", "format": "email" }, "otp": { "type": "string", "pattern": "^\\d{6}$" }, "type": { "type": "string", "enum": ["email-verification", "reset-password"] } } } } } },
+        "responses": { "200": { "description": "OTP verified" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/admin/auth/reset-password": {
+      "post": {
+        "tags": ["Admin Auth"],
+        "summary": "Set a new password",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email", "password", "confirmPassword"], "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "minLength": 8 }, "confirmPassword": { "type": "string", "description": "Must match password" } } } } } },
+        "responses": { "200": { "description": "Password reset" }, "400": { "$ref": "#/components/responses/BadRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/categories": {
+      "get": {
+        "tags": ["Admin Categories"],
+        "summary": "List categories",
+        "description": "NOTE: currently not auth-gated at all (known bug — `requireAdmin` is commented out in the route file).",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "categories": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } } } } } } } } } }
+      },
+      "post": {
+        "tags": ["Admin Categories"],
+        "summary": "Create a category",
+        "description": "NOTE: currently not auth-gated at all (known bug — `requireAdmin` is commented out in the route file). Intended to require an admin bearer token.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "description": { "type": "string", "nullable": true } } }, "example": { "name": "Politics", "description": "News about government and policy" } } } },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "category": { "$ref": "#/components/schemas/Category" } } } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/admin/categories/{id}": {
+      "get": {
+        "tags": ["Admin Categories"],
+        "summary": "Get a category",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "put": {
+        "tags": ["Admin Categories"],
+        "summary": "Update a category",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "minProperties": 1, "properties": { "name": { "type": "string" }, "description": { "type": "string", "nullable": true } } } } } },
+        "responses": { "200": { "description": "Updated" }, "400": { "$ref": "#/components/responses/BadRequest" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "delete": {
+        "tags": ["Admin Categories"],
+        "summary": "Delete a category",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/campaigns": {
+      "get": {
+        "tags": ["Admin Campaigns"],
+        "summary": "List campaigns",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "tab", "in": "query", "schema": { "type": "string", "enum": ["overview", "active", "completed", "requests", "suspended"], "default": "overview" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "organizer", "in": "query", "schema": { "type": "string" } },
+          { "name": "dateFrom", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "dateTo", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "campaigns": { "type": "array", "items": { "$ref": "#/components/schemas/Campaign" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/admin/campaigns/stats": {
+      "get": {
+        "tags": ["Admin Campaigns"],
+        "summary": "Campaign dashboard stats",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/admin/campaigns/{id}": {
+      "get": {
+        "tags": ["Admin Campaigns"],
+        "summary": "Get a single campaign",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "campaign": { "$ref": "#/components/schemas/Campaign" } } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/campaigns/{id}/approve": {
+      "post": {
+        "tags": ["Admin Campaigns"],
+        "summary": "Approve a pending campaign (pending → active)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Approved" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/campaigns/{id}/reject": {
+      "post": {
+        "tags": ["Admin Campaigns"],
+        "summary": "Reject a pending campaign",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["rejectionReason"], "properties": { "rejectionReason": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Rejected" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/campaigns/{id}/suspend": {
+      "post": {
+        "tags": ["Admin Campaigns"],
+        "summary": "Suspend an active campaign (acts as the takedown mechanism; there is no delete endpoint)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["suspensionReasons"],
+                "properties": {
+                  "suspensionReasons": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "type": "string", "enum": ["Violation of Platform Guidelines", "Misleading or False Information", "Inappropriate Content", "Reported for Fraudulent Activity", "Other"] }
+                  },
+                  "suspensionNote": { "type": "string", "description": "Required (non-empty) if suspensionReasons includes 'Other'" }
+                }
+              },
+              "example": { "suspensionReasons": ["Misleading or False Information"] }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Suspended" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/campaigns/{id}/complete": {
+      "post": {
+        "tags": ["Admin Campaigns"],
+        "summary": "Mark an active campaign as completed",
+        "description": "Manual only — reaching the funding goal does not auto-complete a campaign.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Completed" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/stripe/webhook": {
+      "post": {
+        "tags": ["Stripe Webhook"],
+        "summary": "Stripe payment webhook",
+        "description": "Server-to-server only. Body must be the raw bytes Stripe sent (the route is mounted before the global JSON body parser specifically to preserve this). Verifies the `stripe-signature` header against `STRIPE_WEBHOOK_SECRET`. Not callable meaningfully from Swagger UI / Postman without a real Stripe-signed payload.",
+        "parameters": [{ "name": "Stripe-Signature", "in": "header", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "responses": { "200": { "description": "Acknowledged", "content": { "application/json": { "example": { "received": true } } } }, "400": { "description": "Invalid signature" } }
+      }
+    }
+  }
+}
