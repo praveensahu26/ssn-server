@@ -21,7 +21,12 @@ const unfollowCategory = catchAsync(async (req, res) => {
 
 const assignCategories = catchAsync(async (req, res) => {
   const user = await categoryService.assignCategoriesToUser(req.user.id, req.body.categoryIds);
-  sendSuccess(res, httpStatus.OK, 'Topics assigned successfully', { user });
+  sendSuccess(res, httpStatus.OK, 'Topics assigned successfully', {
+    user,
+    isProfilePending: !user.mobile || !user.gender,
+    isTopicsSelectionPending: user.followedCategories.length === 0,
+    isAgencyReporter: user.isAgencyReporter,
+  });
 });
 
 module.exports = {

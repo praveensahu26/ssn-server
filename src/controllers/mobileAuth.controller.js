@@ -5,24 +5,11 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/response');
 
-// Onboarding gates the client needs after a login: has the user filled in mobile/gender,
-// and have they picked at least one topic to follow.
 const buildOnboardingFlags = (user) => ({
   isProfilePending: !user.mobile || !user.gender,
   isTopicsSelectionPending: user.followedCategories.length === 0,
+  isAgencyReporter: user.isAgencyReporter,
 });
-
-const STATUS_MAP = { approved: 'VERIFIED', rejected: 'FAILED', pending: 'PENDING' };
-
-// Only included in the response when the user has applied as a reporter.
-const buildVerification = (user) => {
-  if (!user.isAgencyReporter) return null;
-  const approvalStatus = user.reporterProfile && user.reporterProfile.approvalStatus;
-  return {
-    status: STATUS_MAP[approvalStatus] || 'PENDING',
-    rejectionReason: user.reporterProfile && user.reporterProfile.rejectionReason ? user.reporterProfile.rejectionReason : '',
-  };
-};
 
 const register = catchAsync(async (req, res) => {
   const user = await mobileAuthService.register(req.user, req.body);
@@ -32,31 +19,30 @@ const register = catchAsync(async (req, res) => {
       ? 'Profile updated successfully. Your reporter application is pending admin approval.'
       : 'Profile updated successfully';
 
-  sendSuccess(res, httpStatus.OK, message, { user });
+  sendSuccess(res, httpStatus.OK, message, {
+    user,
+    ...buildOnboardingFlags(user),
+  });
 });
 
 const login = catchAsync(async (req, res) => {
   const { identifier, otp } = req.body;
   const user = await mobileAuthService.loginUserWithOtp(identifier, otp);
   const tokens = await tokenService.generateAuthTokens(user);
-  const verification = buildVerification(user);
 
   sendSuccess(res, httpStatus.OK, 'Logged in successfully', {
     tokens,
     ...buildOnboardingFlags(user),
-    ...(verification && { verification }),
   });
 });
 
 const googleLogin = catchAsync(async (req, res) => {
   const user = await mobileAuthService.loginWithGoogle(req.body.idToken);
   const tokens = await tokenService.generateAuthTokens(user);
-  const verification = buildVerification(user);
 
   sendSuccess(res, httpStatus.OK, 'Logged in successfully', {
     tokens,
     ...buildOnboardingFlags(user),
-    ...(verification && { verification }),
   });
 });
 
