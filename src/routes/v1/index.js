@@ -3,6 +3,7 @@ const express = require('express');
 const adminAuthRoute = require('./auth.route');
 const adminCampaignRoute = require('./adminCampaign.route');
 const adminCategoryRoute = require('./adminCategory.route');
+const adminReporterRoute = require('./adminReporter.route');
 const campaignRoute = require('./campaign.route');
 const categoryRoute = require('./category.route');
 const docsRoute = require('./docs.route');
@@ -35,5 +36,6 @@ router.use('/news', newsRoute);
 router.use('/admin/auth', adminAuthRoute);
 router.use('/admin/campaigns', adminCampaignRoute);
 router.use('/admin/categories', adminCategoryRoute);
+router.use('/admin/reporters', adminReporterRoute);
 
 module.exports = router;

@@ -28,9 +28,6 @@ const categoryId = {
 };
 
 const assignCategories = {
-  params: Joi.object().keys({
-    userId: objectId.required(),
-  }),
   body: Joi.object().keys({
     categoryIds: Joi.array().items(objectId).min(1).required(),
   }),

@@ -20,6 +20,7 @@
     { "name": "Admin Auth", "description": "Web admin panel login" },
     { "name": "Admin Categories", "description": "Admin CRUD for categories" },
     { "name": "Admin Campaigns", "description": "Admin moderation of campaigns" },
+    { "name": "Admin Reporters", "description": "Admin moderation of reporter/journalist applications" },
     { "name": "Stripe Webhook", "description": "Stripe payment webhook (server-to-server, unauthenticated, signature-verified)" }
   ],
   "components": {
@@ -98,7 +99,8 @@
             "properties": { "language": { "type": "string", "example": "en" } }
           },
           "followedCategories": { "type": "array", "items": { "type": "string" } },
-          "isTopicsSelected": { "type": "boolean", "description": "Set true once the user completes POST/PUT /categories/assign/{userId} (onboarding topics step)" },
+          "isTopicsSelected": { "type": "boolean", "description": "Set true once the user completes POST/PUT /categories/assign (onboarding topics step)" },
+          "isAgencyReporter": { "type": "boolean", "description": "True when the user has applied or been approved as a reporter/journalist" },
           "blockedUsers": { "type": "array", "items": { "type": "string" } },
           "reporterProfile": {
             "type": "object",
@@ -262,21 +264,17 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["name", "email", "authProvider"],
+                "required": ["name"],
                 "properties": {
                   "name": { "type": "string" },
-                  "email": { "type": "string", "format": "email" },
                   "mobile": { "type": "string", "pattern": "^[0-9]{7,15}$" },
                   "gender": { "type": "string", "enum": ["male", "female", "other", "prefer_not_to_say"] },
-                  "role": { "type": "string", "enum": ["user", "reporter"], "default": "user" },
-                  "authProvider": { "type": "string", "enum": ["google", "apple", "facebook"] },
-                  "journalistId": { "type": "string", "description": "Required when role=reporter" },
-                  "documents": { "type": "array", "items": { "type": "string" }, "description": "Allowed when role=reporter" }
+                  "journalistId": { "type": "string", "description": "Include to register as an agency reporter" }
                 }
               },
               "examples": {
-                "user": { "value": { "name": "Jane Doe", "email": "jane@example.com", "mobile": "9876543210", "gender": "female", "role": "user", "authProvider": "google" } },
-                "reporter": { "value": { "name": "John Reporter", "email": "john@example.com", "role": "reporter", "authProvider": "google", "journalistId": "PRESS-12345", "documents": ["https://bucket.s3.amazonaws.com/docs/id-card.pdf"] } }
+                "user": { "value": { "name": "Jane Doe", "mobile": "9876543210", "gender": "female" } },
+                "reporter": { "value": { "name": "John Reporter", "journalistId": "PRESS-12345" } }
               }
             }
           }
@@ -300,7 +298,22 @@
           "content": { "application/json": { "schema": { "type": "object", "required": ["identifier", "otp"], "properties": { "identifier": { "type": "string", "description": "email or mobile" }, "otp": { "type": "string", "pattern": "^\\d{6}$" } } }, "example": { "identifier": "jane@example.com", "otp": "123456" } } }
         },
         "responses": {
-          "200": { "description": "Logged in", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" }, "tokens": { "$ref": "#/components/schemas/Tokens" } } } } } } } },
+          "200": {
+            "description": "Logged in",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": {
+              "tokens": { "$ref": "#/components/schemas/Tokens" },
+              "isProfilePending": { "type": "boolean" },
+              "isTopicsSelectionPending": { "type": "boolean" },
+              "verification": {
+                "type": "object",
+                "description": "Only present when the user is a reporter/journalist (isAgencyReporter: true)",
+                "properties": {
+                  "status": { "type": "string", "enum": ["PENDING", "VERIFIED", "FAILED"] },
+                  "rejectionReason": { "type": "string", "description": "Non-empty only when status is FAILED" }
+                }
+              }
+            } } } } } }
+          },
           "400": { "$ref": "#/components/responses/BadRequest" }
         }
       }
@@ -312,7 +325,22 @@
         "description": "Find-or-create on the decoded Google token's email/sub. New accounts are created immediately with `isTopicsSelected: false`; the client should follow up with POST/PUT `/categories/assign/{userId}` once the user picks topics, which flips `isTopicsSelected` to true. Pass `journalistId` (from the \"Join as Agency Reporter\" screen) to sign up as a reporter: the account is created/upgraded to `role: reporter_pending` with `reporterProfile.approvalStatus: pending` until an admin approves it (existing `reporter`/`reporter_pending` accounts are never downgraded by this).",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["idToken"], "properties": { "idToken": { "type": "string" }, "journalistId": { "type": "string", "description": "Only sent on the Agency Reporter sign-up flow" } } } } } },
         "responses": {
-          "200": { "description": "Logged in (or signed up)", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" }, "tokens": { "$ref": "#/components/schemas/Tokens" } } } } } } } },
+          "200": {
+            "description": "Logged in (or signed up)",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": {
+              "tokens": { "$ref": "#/components/schemas/Tokens" },
+              "isProfilePending": { "type": "boolean" },
+              "isTopicsSelectionPending": { "type": "boolean" },
+              "verification": {
+                "type": "object",
+                "description": "Only present when the user is a reporter/journalist (isAgencyReporter: true)",
+                "properties": {
+                  "status": { "type": "string", "enum": ["PENDING", "VERIFIED", "FAILED"] },
+                  "rejectionReason": { "type": "string", "description": "Non-empty only when status is FAILED" }
+                }
+              }
+            } } } } } }
+          },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
@@ -410,24 +438,22 @@
         "responses": { "200": { "description": "Unfollowed" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
-    "/categories/assign/{userId}": {
+    "/categories/assign": {
       "post": {
         "tags": ["Categories"],
         "summary": "Set followed-categories / topics of interest (onboarding)",
-        "description": "`userId` in the path must equal the authenticated user's own id — you can only set your own interests.",
+        "description": "User is identified from the bearer token — no userId needed in the path.",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["categoryIds"], "properties": { "categoryIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } } } },
-        "responses": { "200": { "description": "Assigned" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+        "responses": { "200": { "description": "Assigned" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       },
       "put": {
         "tags": ["Categories"],
         "summary": "Replace followed-categories / topics of interest",
-        "description": "Same behavior as POST on this path — kept as both verbs for client convenience.",
+        "description": "Same behavior as POST — kept as both verbs for client convenience. User identified from bearer token.",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["categoryIds"], "properties": { "categoryIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } } } },
-        "responses": { "200": { "description": "Assigned" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+        "responses": { "200": { "description": "Assigned" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
     "/news": {
@@ -925,6 +951,57 @@
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": { "200": { "description": "Completed" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } }
+      }
+    },
+    "/admin/reporters": {
+      "get": {
+        "tags": ["Admin Reporters"],
+        "summary": "List reporter applications",
+        "description": "No auth required for now. Filter by status (default: pending).",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "approved", "rejected"], "default": "pending" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": {
+              "reporters": { "type": "array", "items": { "$ref": "#/components/schemas/User" } },
+              "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+            } } } } } }
+          }
+        }
+      }
+    },
+    "/admin/reporters/{id}/approve": {
+      "post": {
+        "tags": ["Admin Reporters"],
+        "summary": "Approve a pending reporter application",
+        "description": "Sets role to `reporter` and approvalStatus to `approved`. No auth required for now. No request body needed.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Reporter's user id" }],
+        "responses": {
+          "200": { "description": "Approved", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" } } } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/admin/reporters/{id}/reject": {
+      "post": {
+        "tags": ["Admin Reporters"],
+        "summary": "Reject a pending reporter application",
+        "description": "Sets approvalStatus to `rejected` and stores the rejection reason. Role stays `reporter_pending` so the user can resubmit. No auth required for now.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Reporter's user id" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["reason"], "properties": { "reason": { "type": "string" } } }, "example": { "reason": "Documents provided are not valid press credentials" } } }
+        },
+        "responses": {
+          "200": { "description": "Rejected", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "object", "properties": { "user": { "$ref": "#/components/schemas/User" } } } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
       }
     },
     "/stripe/webhook": {

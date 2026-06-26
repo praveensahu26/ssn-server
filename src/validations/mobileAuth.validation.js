@@ -5,7 +5,6 @@ const password = Joi.string().min(8).required();
 const register = {
   body: Joi.object().keys({
     name: Joi.string().trim().required(),
-    email: Joi.string().email().required(),
     mobile: Joi.string()
       .pattern(/^[0-9]{7,15}$/)
       .messages({ 'string.pattern.base': 'mobile must be 7 to 15 digits' }),

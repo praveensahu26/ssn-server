@@ -52,7 +52,7 @@ const userSchema = mongoose.Schema(
       enum: ['admin', 'manager', 'operator', 'user', 'reporter', 'reporter_pending'],
       default: 'user',
     },
-    isReporter: {
+    isAgencyReporter: {
       type: Boolean,
       default: false,
     },

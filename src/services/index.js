@@ -1,4 +1,5 @@
 const adminCampaignService = require('./adminCampaign.service');
+const adminReporterService = require('./adminReporter.service');
 const authService = require('./auth.service');
 const campaignService = require('./campaign.service');
 const categoryService = require('./category.service');
@@ -12,6 +13,7 @@ const tokenService = require('./token.service');
 
 module.exports = {
   adminCampaignService,
+  adminReporterService,
   authService,
   campaignService,
   categoryService,

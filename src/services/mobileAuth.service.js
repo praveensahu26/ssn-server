@@ -27,28 +27,24 @@ const getUserByEmailOrMobile = async (identifier) =>
 /**
  * Complete the profile of an already-authenticated account (created by `loginWithGoogle`
  * or another social login). If `journalistId` is in the payload, the caller is applying as
- * a reporter: flip `isReporter`, demote the role to `reporter_pending`, and mark the
+ * a reporter: flip `isAgencyReporter`, demote the role to `reporter_pending`, and mark the
  * `reporterProfile` as pending admin approval. A normal user gets none of that.
  */
 const register = async (user, body) => {
-  const { name, email, mobile, gender, journalistId } = body;
+  const { name, mobile, gender, journalistId } = body;
 
-  if (email && email.toLowerCase() !== user.email && (await User.isEmailTaken(email, user.id))) {
-    throw new ApiError(httpStatus.CONFLICT, 'Email already in use');
-  }
   if (mobile && mobile !== user.mobile && (await User.isMobileTaken(mobile, user.id))) {
     throw new ApiError(httpStatus.CONFLICT, 'Mobile number already in use');
   }
 
-  const isReporter = Boolean(journalistId);
+  const isAgencyReporter = Boolean(journalistId);
 
   user.set({
     name,
-    email,
     mobile,
     gender: gender || null,
-    ...(isReporter && {
-      isReporter: true,
+    ...(isAgencyReporter && {
+      isAgencyReporter: true,
       role: 'reporter_pending',
       reporterProfile: {
         journalistId,
@@ -200,7 +196,7 @@ const applyAsReporter = async (user, documents) => {
 
   user.set({
     role: 'reporter_pending',
-    isReporter: true,
+    isAgencyReporter: true,
     reporterProfile: {
       documents,
       approvalStatus: 'pending',

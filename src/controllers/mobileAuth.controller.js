@@ -12,6 +12,18 @@ const buildOnboardingFlags = (user) => ({
   isTopicsSelectionPending: user.followedCategories.length === 0,
 });
 
+const STATUS_MAP = { approved: 'VERIFIED', rejected: 'FAILED', pending: 'PENDING' };
+
+// Only included in the response when the user has applied as a reporter.
+const buildVerification = (user) => {
+  if (!user.isAgencyReporter) return null;
+  const approvalStatus = user.reporterProfile && user.reporterProfile.approvalStatus;
+  return {
+    status: STATUS_MAP[approvalStatus] || 'PENDING',
+    rejectionReason: user.reporterProfile && user.reporterProfile.rejectionReason ? user.reporterProfile.rejectionReason : '',
+  };
+};
+
 const register = catchAsync(async (req, res) => {
   const user = await mobileAuthService.register(req.user, req.body);
 
@@ -27,15 +39,25 @@ const login = catchAsync(async (req, res) => {
   const { identifier, otp } = req.body;
   const user = await mobileAuthService.loginUserWithOtp(identifier, otp);
   const tokens = await tokenService.generateAuthTokens(user);
+  const verification = buildVerification(user);
 
-  sendSuccess(res, httpStatus.OK, 'Logged in successfully', { tokens, ...buildOnboardingFlags(user) });
+  sendSuccess(res, httpStatus.OK, 'Logged in successfully', {
+    tokens,
+    ...buildOnboardingFlags(user),
+    ...(verification && { verification }),
+  });
 });
 
 const googleLogin = catchAsync(async (req, res) => {
   const user = await mobileAuthService.loginWithGoogle(req.body.idToken);
   const tokens = await tokenService.generateAuthTokens(user);
+  const verification = buildVerification(user);
 
-  sendSuccess(res, httpStatus.OK, 'Logged in successfully', { tokens, ...buildOnboardingFlags(user) });
+  sendSuccess(res, httpStatus.OK, 'Logged in successfully', {
+    tokens,
+    ...buildOnboardingFlags(user),
+    ...(verification && { verification }),
+  });
 });
 
 const refreshToken = catchAsync(async (req, res) => {

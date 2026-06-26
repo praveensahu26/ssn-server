@@ -1,7 +1,6 @@
 const httpStatus = require('http-status');
 
 const { categoryService } = require('../services');
-const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/response');
 
@@ -21,10 +20,7 @@ const unfollowCategory = catchAsync(async (req, res) => {
 });
 
 const assignCategories = catchAsync(async (req, res) => {
-  if (req.params.userId !== req.user.id) {
-    throw new ApiError(httpStatus.FORBIDDEN, 'You can only set your own interests');
-  }
-  const user = await categoryService.assignCategoriesToUser(req.params.userId, req.body.categoryIds);
+  const user = await categoryService.assignCategoriesToUser(req.user.id, req.body.categoryIds);
   sendSuccess(res, httpStatus.OK, 'Topics assigned successfully', { user });
 });
 
