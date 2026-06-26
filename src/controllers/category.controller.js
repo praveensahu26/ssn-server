@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 
-const { categoryService } = require('../services');
+const { categoryService, tokenService } = require('../services');
 const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/response');
 
@@ -21,8 +21,9 @@ const unfollowCategory = catchAsync(async (req, res) => {
 
 const assignCategories = catchAsync(async (req, res) => {
   const user = await categoryService.assignCategoriesToUser(req.user.id, req.body.categoryIds);
+  const tokens = await tokenService.generateAuthTokens(user);
   sendSuccess(res, httpStatus.OK, 'Topics assigned successfully', {
-    user,
+    tokens,
     isProfilePending: !user.mobile || !user.gender,
     isTopicsSelectionPending: user.followedCategories.length === 0,
     isAgencyReporter: user.isAgencyReporter,

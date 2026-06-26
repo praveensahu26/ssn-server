@@ -13,6 +13,7 @@ const buildOnboardingFlags = (user) => ({
 
 const register = catchAsync(async (req, res) => {
   const user = await mobileAuthService.register(req.user, req.body);
+  const tokens = await tokenService.generateAuthTokens(user);
 
   const message =
     user.role === 'reporter_pending'
@@ -20,7 +21,7 @@ const register = catchAsync(async (req, res) => {
       : 'Profile updated successfully';
 
   sendSuccess(res, httpStatus.OK, message, {
-    user,
+    tokens,
     ...buildOnboardingFlags(user),
   });
 });
