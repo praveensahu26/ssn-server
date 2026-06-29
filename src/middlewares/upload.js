@@ -6,6 +6,8 @@ const config = require('../config/config');
 const ApiError = require('../utils/ApiError');
 const { s3Client } = require('../services/s3.service');
 
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
@@ -103,4 +105,52 @@ const uploadCampaignAttachments = (req, res, next) => {
   });
 };
 
-module.exports = { uploadCampaignAttachments, uploadMedia };
+const imageOnlyFilter = (req, file, cb) => {
+  if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+    cb(new ApiError(httpStatus.BAD_REQUEST, 'Only image files are allowed (jpeg/png/webp/gif)'));
+    return;
+  }
+  cb(null, true);
+};
+
+const avatarStorage = multerS3({
+  s3: s3Client,
+  bucket: (req, file, cb) => cb(null, config.s3.bucket),
+  contentType: multerS3.AUTO_CONTENT_TYPE,
+  acl: (req, file, cb) => cb(null, undefined),
+  key: (req, file, cb) => {
+    cb(null, `profile/${req.user.id}/avatar/${Date.now()}-${sanitizeFilename(file.originalname)}`);
+  },
+});
+
+const coverStorage = multerS3({
+  s3: s3Client,
+  bucket: (req, file, cb) => cb(null, config.s3.bucket),
+  contentType: multerS3.AUTO_CONTENT_TYPE,
+  acl: (req, file, cb) => cb(null, undefined),
+  key: (req, file, cb) => {
+    cb(null, `profile/${req.user.id}/cover/${Date.now()}-${sanitizeFilename(file.originalname)}`);
+  },
+});
+
+const MAX_PROFILE_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const avatarUpload = multer({ storage: avatarStorage, fileFilter: imageOnlyFilter, limits: { fileSize: MAX_PROFILE_IMAGE_SIZE } });
+const coverUpload = multer({ storage: coverStorage, fileFilter: imageOnlyFilter, limits: { fileSize: MAX_PROFILE_IMAGE_SIZE } });
+
+const handleProfileUpload = (uploader, fieldName) => (req, res, next) => {
+  uploader.single(fieldName)(req, res, (err) => {
+    if (err) {
+      if (err instanceof ApiError) return next(err);
+      if (err.code === 'LIMIT_FILE_SIZE') return next(new ApiError(httpStatus.BAD_REQUEST, 'File too large. Max size is 10MB'));
+      return next(new ApiError(httpStatus.BAD_REQUEST, err.message));
+    }
+    if (!req.file) return next(new ApiError(httpStatus.BAD_REQUEST, 'Image file is required'));
+    return next();
+  });
+};
+
+const uploadAvatar = handleProfileUpload(avatarUpload, 'avatar');
+const uploadCoverPhoto = handleProfileUpload(coverUpload, 'coverPhoto');
+
+module.exports = { uploadAvatar, uploadCampaignAttachments, uploadCoverPhoto, uploadMedia };

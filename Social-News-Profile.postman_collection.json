@@ -1,0 +1,342 @@
+{
+  "info": {
+    "name": "Social News — Profile Module",
+    "_postman_id": "social-news-profile-module",
+    "description": "All Profile module APIs for the Social News App",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newsId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Own Profile",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me"]
+            },
+            "description": "Get the authenticated user's profile including followers, following and posts counts."
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos Brasswell\",\n  \"bio\": \"Journalist & content creator\",\n  \"gender\": \"male\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"liveCaption\": \"Professional news reporting\",\n  \"liveUrl\": \"https://professionalpage.com\",\n  \"location\": \"New York, USA\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me"]
+            },
+            "description": "Update name, bio, gender, date of birth, live caption/URL, location. Send only the fields you want to change."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile Photos",
+      "item": [
+        {
+          "name": "Upload Profile Photo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": "",
+                  "description": "Image file (jpeg/png/webp/gif, max 10MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "avatar"]
+            },
+            "description": "Upload or replace profile photo. Old photo is automatically deleted from S3."
+          }
+        },
+        {
+          "name": "Delete Profile Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "avatar"]
+            },
+            "description": "Delete the current profile photo from S3 and clear the avatar field."
+          }
+        },
+        {
+          "name": "Upload Cover Photo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "coverPhoto",
+                  "type": "file",
+                  "src": "",
+                  "description": "Image file (jpeg/png/webp/gif, max 10MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/cover-photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "cover-photo"]
+            },
+            "description": "Upload or replace cover photo. Old photo is automatically deleted from S3."
+          }
+        },
+        {
+          "name": "Delete Cover Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/cover-photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "cover-photo"]
+            },
+            "description": "Delete the current cover photo from S3 and clear the coverPhoto field."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Get My Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/posts?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "posts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Get paginated list of own posts (excludes deleted). Used for the profile posts grid."
+          }
+        },
+        {
+          "name": "Get Another User's Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/{{userId}}/posts?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "{{userId}}", "posts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Get paginated public posts of another user by their userId."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favourites",
+      "item": [
+        {
+          "name": "Get My Saved Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/favourites?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "favourites"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Get paginated list of posts saved by the authenticated user."
+          }
+        },
+        {
+          "name": "Save a Post",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/favourites/{{newsId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "favourites", "{{newsId}}"]
+            },
+            "description": "Save/favourite a post by its ID. Idempotent — saving an already-saved post is a no-op."
+          }
+        },
+        {
+          "name": "Unsave a Post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/favourites/{{newsId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "favourites", "{{newsId}}"]
+            },
+            "description": "Remove a post from the saved/favourites list."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Follow System",
+      "item": [
+        {
+          "name": "Get My Following List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/following?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "following"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Get paginated list of users the authenticated user is following."
+          }
+        },
+        {
+          "name": "Get My Followers List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/followers?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "followers"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Get paginated list of users who follow the authenticated user."
+          }
+        },
+        {
+          "name": "Follow a User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/{{userId}}/follow",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "{{userId}}", "follow"]
+            },
+            "description": "Follow another user. Idempotent — following an already-followed user is a no-op."
+          }
+        },
+        {
+          "name": "Unfollow a User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/{{userId}}/follow",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "{{userId}}", "follow"]
+            },
+            "description": "Unfollow a user you are currently following."
+          }
+        },
+        {
+          "name": "Remove a Follower",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me/followers/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me", "followers", "{{userId}}"]
+            },
+            "description": "Remove a follower from your followers list (\"Remove Connection\" in the UI). The target user is also removed from their following list."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Other User Profile",
+      "item": [
+        {
+          "name": "Get Another User's Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "{{userId}}"]
+            },
+            "description": "View another user's public profile. Response includes isFollowing flag, followers/following/posts counts. Private fields (blocked users, saved posts, privacy settings) are excluded."
+          }
+        }
+      ]
+    }
+  ]
+}

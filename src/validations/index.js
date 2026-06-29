@@ -5,6 +5,7 @@ const campaignValidation = require('./campaign.validation');
 const categoryValidation = require('./category.validation');
 const mobileAuthValidation = require('./mobileAuth.validation');
 const newsValidation = require('./news.validation');
+const profileValidation = require('./profile.validation');
 const settingsValidation = require('./settings.validation');
 
 module.exports = {
@@ -15,5 +16,6 @@ module.exports = {
   categoryValidation,
   mobileAuthValidation,
   newsValidation,
+  profileValidation,
   settingsValidation,
 };
