@@ -1,5 +1,21 @@
+const adminCampaignValidation = require('./adminCampaign.validation');
+const adminReporterValidation = require('./adminReporter.validation');
 const authValidation = require('./auth.validation');
+const campaignValidation = require('./campaign.validation');
+const categoryValidation = require('./category.validation');
+const mobileAuthValidation = require('./mobileAuth.validation');
+const newsValidation = require('./news.validation');
+const profileValidation = require('./profile.validation');
+const settingsValidation = require('./settings.validation');
 
 module.exports = {
+  adminCampaignValidation,
+  adminReporterValidation,
   authValidation,
+  campaignValidation,
+  categoryValidation,
+  mobileAuthValidation,
+  newsValidation,
+  profileValidation,
+  settingsValidation,
 };

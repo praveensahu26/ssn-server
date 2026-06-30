@@ -23,15 +23,167 @@ const userSchema = mongoose.Schema(
         }
       },
     },
+    mobile: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+    },
     password: {
       type: String,
-      required: true,
+      // Only local accounts have a password; social (e.g. Google) accounts don't.
+      required: function requiredPassword() {
+        return this.authProvider === 'local';
+      },
       private: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google', 'apple', 'facebook'],
+      default: 'local',
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     role: {
       type: String,
-      enum: ['admin', 'manager', 'operator', 'user'],
+      enum: ['admin', 'manager', 'operator', 'user', 'reporter', 'reporter_pending'],
       default: 'user',
+    },
+    isAgencyReporter: {
+      type: Boolean,
+      default: false,
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other', 'prefer_not_to_say'],
+      default: null,
+    },
+    bio: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    avatar: {
+      type: String,
+      default: null,
+    },
+    coverPhoto: {
+      type: String,
+      default: null,
+    },
+    liveCaption: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    liveUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    location: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    privacySettings: {
+      profileVisibility: {
+        type: String,
+        enum: ['everyone', 'connections_only', 'private'],
+        default: 'everyone',
+      },
+      whoCanComment: {
+        type: String,
+        enum: ['public', 'connections_only', 'private'],
+        default: 'public',
+      },
+      commentsEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      whoCanSharePosts: {
+        type: String,
+        enum: ['public', 'connections_only', 'private'],
+        default: 'public',
+      },
+    },
+    preferences: {
+      language: {
+        type: String,
+        default: 'en',
+      },
+    },
+    dateOfBirth: {
+      type: Date,
+      default: null,
+    },
+    avatarKey: {
+      type: String,
+      default: null,
+    },
+    coverPhotoKey: {
+      type: String,
+      default: null,
+    },
+    followers: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
+    following: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
+    savedPosts: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'News',
+      },
+    ],
+    blockedUsers: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
+    followedCategories: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'Category',
+      },
+    ],
+    isTopicsSelected: {
+      type: Boolean,
+      default: false,
+    },
+    reporterProfile: {
+      journalistId: {
+        type: String,
+        default: null,
+      },
+      documents: {
+        type: [String],
+        default: [],
+      },
+      approvalStatus: {
+        type: String,
+        enum: [null, 'pending', 'approved', 'rejected'],
+        default: null,
+      },
+      appliedAt: {
+        type: Date,
+        default: null,
+      },
+      rejectionReason: {
+        type: String,
+        default: null,
+      },
     },
     isSuperAdmin: {
       type: Boolean,
@@ -43,7 +195,7 @@ const userSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'inactive', 'suspended'],
+      enum: ['active', 'inactive', 'suspended', 'blocked'],
       default: 'active',
     },
     otp: {
@@ -74,6 +226,11 @@ userSchema.plugin(toJSON);
 
 userSchema.statics.isEmailTaken = async function isEmailTaken(email, excludeUserId) {
   const user = await this.findOne({ email: email.toLowerCase() });
+  return !!user && (!excludeUserId || user.id !== excludeUserId);
+};
+
+userSchema.statics.isMobileTaken = async function isMobileTaken(mobile, excludeUserId) {
+  const user = await this.findOne({ mobile });
   return !!user && (!excludeUserId || user.id !== excludeUserId);
 };
 
