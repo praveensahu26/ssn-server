@@ -19,6 +19,15 @@ const commentSchema = mongoose.Schema(
       trim: true,
       required: true,
     },
+    parentComment: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'Comment',
+      default: null,
+    },
+    repliesCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

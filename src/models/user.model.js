@@ -216,6 +216,12 @@ const userSchema = mongoose.Schema(
       type: [String],
       default: [],
     },
+    notificationSettings: {
+      push: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      breakingNews: { type: Boolean, default: true },
+      trendingNews: { type: Boolean, default: true },
+    },
   },
   {
     timestamps: true,
