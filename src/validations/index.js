@@ -6,6 +6,8 @@ const categoryValidation = require('./category.validation');
 const dashboardValidation = require('./dashboard.validation');
 const mobileAuthValidation = require('./mobileAuth.validation');
 const newsValidation = require('./news.validation');
+const notificationValidation = require('./notification.validation');
+const profileValidation = require('./profile.validation');
 const settingsValidation = require('./settings.validation');
 
 module.exports = {
@@ -17,6 +19,8 @@ module.exports = {
   dashboardValidation,
   mobileAuthValidation,
   newsValidation,
+  notificationValidation,
+  profileValidation,
   settingsValidation,
 };
 

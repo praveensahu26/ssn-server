@@ -1,6 +1,6 @@
-const paginate = async (Model, filter, page, limit, populate = []) => {
+const paginate = async (Model, filter, page, limit, populate = [], sort = { createdAt: -1 }) => {
   let cursor = Model.find(filter)
-    .sort({ createdAt: -1 })
+    .sort(sort)
     .skip((page - 1) * limit)
     .limit(limit);
   populate.forEach(([path, select]) => {

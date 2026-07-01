@@ -116,6 +116,36 @@ const userSchema = mongoose.Schema(
         default: 'en',
       },
     },
+    dateOfBirth: {
+      type: Date,
+      default: null,
+    },
+    avatarKey: {
+      type: String,
+      default: null,
+    },
+    coverPhotoKey: {
+      type: String,
+      default: null,
+    },
+    followers: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
+    following: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
+    savedPosts: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'News',
+      },
+    ],
     blockedUsers: [
       {
         type: mongoose.SchemaTypes.ObjectId,
@@ -185,6 +215,12 @@ const userSchema = mongoose.Schema(
     permissions: {
       type: [String],
       default: [],
+    },
+    notificationSettings: {
+      push: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      breakingNews: { type: Boolean, default: true },
+      trendingNews: { type: Boolean, default: true },
     },
   },
   {

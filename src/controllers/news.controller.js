@@ -5,7 +5,7 @@ const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/response');
 
 const createNews = catchAsync(async (req, res) => {
-  const news = await newsService.createNews(req.user, req.file, req.body);
+  const news = await newsService.createNews(req.user, req.files, req.body);
   sendSuccess(res, httpStatus.CREATED, 'Post created successfully', { news });
 });
 
@@ -54,6 +54,14 @@ const removeReaction = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.OK, 'Reaction removed successfully', { news });
 });
 
+const listReactions = catchAsync(async (req, res) => {
+  const { results, page, limit, total, totalPages } = await newsService.listReactions(req.params.id, req.query);
+  sendSuccess(res, httpStatus.OK, 'Reactions fetched successfully', {
+    reactions: results,
+    meta: { page, limit, total, totalPages },
+  });
+});
+
 const addComment = catchAsync(async (req, res) => {
   const comment = await newsService.addComment(req.user, req.params.id, req.body.text);
   sendSuccess(res, httpStatus.CREATED, 'Comment added successfully', { comment });
@@ -72,8 +80,26 @@ const deleteComment = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.OK, 'Comment deleted successfully');
 });
 
+const addReply = catchAsync(async (req, res) => {
+  const reply = await newsService.addReply(req.user, req.params.id, req.params.commentId, req.body.text);
+  sendSuccess(res, httpStatus.CREATED, 'Reply added successfully', { reply });
+});
+
+const listReplies = catchAsync(async (req, res) => {
+  const { results, page, limit, total, totalPages } = await newsService.listReplies(
+    req.params.id,
+    req.params.commentId,
+    req.query,
+  );
+  sendSuccess(res, httpStatus.OK, 'Replies fetched successfully', {
+    replies: results,
+    meta: { page, limit, total, totalPages },
+  });
+});
+
 module.exports = {
   addComment,
+  addReply,
   createNews,
   deleteComment,
   deleteNews,
@@ -83,5 +109,7 @@ module.exports = {
   listComments,
   listNews,
   listNewsByCategory,
+  listReactions,
+  listReplies,
   removeReaction,
 };
