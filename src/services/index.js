@@ -3,6 +3,7 @@ const adminReporterService = require('./adminReporter.service');
 const authService = require('./auth.service');
 const campaignService = require('./campaign.service');
 const categoryService = require('./category.service');
+const dashboardService = require('./dashboard.service');
 const donationService = require('./donation.service');
 const emailService = require('./email.service');
 const mobileAuthService = require('./mobileAuth.service');
@@ -19,6 +20,7 @@ module.exports = {
   authService,
   campaignService,
   categoryService,
+  dashboardService,
   donationService,
   emailService,
   mobileAuthService,
@@ -29,3 +31,4 @@ module.exports = {
   settingsService,
   tokenService,
 };
+

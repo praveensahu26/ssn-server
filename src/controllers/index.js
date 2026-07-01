@@ -4,6 +4,7 @@ const adminReporterController = require('./adminReporter.controller');
 const authController = require('./auth.controller');
 const campaignController = require('./campaign.controller');
 const categoryController = require('./category.controller');
+const dashboardController = require('./dashboard.controller');
 const mobileAuthController = require('./mobileAuth.controller');
 const newsController = require('./news.controller');
 const notificationController = require('./notification.controller');
@@ -18,6 +19,7 @@ module.exports = {
   authController,
   campaignController,
   categoryController,
+  dashboardController,
   mobileAuthController,
   newsController,
   notificationController,
@@ -25,3 +27,4 @@ module.exports = {
   settingsController,
   stripeWebhookController,
 };
+
