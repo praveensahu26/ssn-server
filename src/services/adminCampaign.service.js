@@ -3,6 +3,7 @@ const httpStatus = require('http-status');
 const { Campaign, Donation } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
+const notificationService = require('./notification.service');
 
 const STATUS_BY_TAB = {
   active: 'active',
@@ -86,6 +87,9 @@ const approveCampaign = async (id) => {
   campaign.status = 'active';
   campaign.approvedAt = new Date();
   await campaign.save();
+  notificationService
+    .notifyFollowers(campaign.organizer, 'campaign_started', { campaignId: campaign.id })
+    .catch(() => {});
   return campaign;
 };
 

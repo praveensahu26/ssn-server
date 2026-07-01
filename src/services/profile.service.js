@@ -4,6 +4,7 @@ const { News, User } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
 const { deleteS3Object } = require('./s3.service');
+const notificationService = require('./notification.service');
 
 const getUserOr404 = async (userId) => {
   const user = await User.findById(userId);
@@ -154,6 +155,9 @@ const followUser = async (user, targetId) => {
     user.following.push(targetId);
     target.followers.push(user.id);
     await Promise.all([user.save(), target.save()]);
+    notificationService
+      .createNotification({ recipient: targetId, sender: user.id, type: 'follow' })
+      .catch(() => {});
   }
 };
 

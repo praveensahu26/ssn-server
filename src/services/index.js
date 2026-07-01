@@ -7,6 +7,7 @@ const donationService = require('./donation.service');
 const emailService = require('./email.service');
 const mobileAuthService = require('./mobileAuth.service');
 const newsService = require('./news.service');
+const notificationService = require('./notification.service');
 const profileService = require('./profile.service');
 const s3Service = require('./s3.service');
 const settingsService = require('./settings.service');
@@ -22,6 +23,7 @@ module.exports = {
   emailService,
   mobileAuthService,
   newsService,
+  notificationService,
   profileService,
   s3Service,
   settingsService,

@@ -3,6 +3,7 @@ const httpStatus = require('http-status');
 const { Category, Comment, News, Reaction } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
+const notificationService = require('./notification.service');
 
 const getNewsOr404 = async (id) => {
   const news = await News.findById(id);
@@ -12,39 +13,41 @@ const getNewsOr404 = async (id) => {
   return news;
 };
 
-const createNews = async (user, file, body) => {
-  const category = await Category.findById(body.category);
-  if (!category) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid category');
+const getCommentOr404 = async (commentId, newsId) => {
+  const comment = await Comment.findOne({ _id: commentId, news: newsId, parentComment: null });
+  if (!comment) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Comment not found');
+  }
+  return comment;
+};
+
+const createNews = async (user, files, body) => {
+  const categoryIds = Array.isArray(body.categories) ? body.categories : [body.categories];
+  const categoryDocs = await Category.find({ _id: { $in: categoryIds } });
+  if (categoryDocs.length !== categoryIds.length) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'One or more invalid categories');
   }
 
-  const type = file.mimetype.startsWith('video/') ? 'video' : 'image';
+  const media = files.map((file) => ({
+    url: file.location,
+    key: file.key,
+    type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+  }));
 
   return News.create({
     author: user.id,
-    type,
-    mediaUrl: file.location,
-    mediaKey: file.key,
+    media,
     caption: body.caption,
     description: body.description || null,
-    category: body.category,
-    location: {
-      lat: body.lat ?? null,
-      lng: body.lng ?? null,
-      city: body.city || null,
-      state: body.state || null,
-      country: body.country || null,
-    },
+    categories: categoryIds,
+    location: body.location || null,
   });
 };
 
 const buildAdminFilter = (query) => {
   const filter = query.status ? { status: query.status } : { status: { $ne: 'deleted' } };
-  if (query.category) filter.category = query.category;
+  if (query.category) filter.categories = query.category;
   if (query.author) filter.author = query.author;
-  if (query.city) filter['location.city'] = query.city;
-  if (query.state) filter['location.state'] = query.state;
-  if (query.country) filter['location.country'] = query.country;
   if (query.dateFrom || query.dateTo) {
     filter.createdAt = {};
     if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
@@ -54,47 +57,34 @@ const buildAdminFilter = (query) => {
 };
 
 const buildUserFilter = (user, query) => {
-  const authorId = query.author || user.id;
-  const isSelf = authorId === user.id;
-  const filter = { author: authorId };
-  filter.status = isSelf ? query.status || { $ne: 'deleted' } : 'public';
-  if (query.category) {
-    filter.category = query.category;
+  if (query.author) {
+    const isSelf = query.author === user.id;
+    const filter = { author: query.author };
+    filter.status = isSelf ? query.status || { $ne: 'deleted' } : 'public';
+    if (query.category) filter.categories = query.category;
+    return filter;
   }
+  // Feed mode: public posts filtered by followed categories (all public if none followed)
+  const filter = { status: 'public' };
+  if (user.followedCategories && user.followedCategories.length > 0) {
+    filter.categories = { $in: user.followedCategories };
+  }
+  if (query.category) filter.categories = query.category;
   return filter;
 };
 
-const attachReactionsAndComments = async (newsItems) => {
-  if (!newsItems.length) return newsItems;
-  const ids = newsItems.map((news) => news.id);
-  const [reactions, comments] = await Promise.all([
-    Reaction.find({ news: { $in: ids } }).populate('user', 'name avatar role'),
-    Comment.find({ news: { $in: ids } })
-      .sort({ createdAt: -1 })
-      .populate('author', 'name avatar role'),
-  ]);
-
-  return newsItems.map((news) => {
-    const json = news.toJSON();
-    json.likedBy = reactions.filter((r) => r.type === 'like' && r.news.toString() === news.id && r.user).map((r) => r.user);
-    json.dislikedBy = reactions
-      .filter((r) => r.type === 'dislike' && r.news.toString() === news.id && r.user)
-      .map((r) => r.user);
-    json.comments = comments
-      .filter((c) => c.news.toString() === news.id && c.author)
-      .map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt, author: c.author }));
-    return json;
-  });
-};
-
 const listNews = async (user, query) => {
-  const filter = user.isOperator() ? buildAdminFilter(query) : buildUserFilter(user, query);
-  const paginated = await paginate(News, filter, query.page, query.limit, [
+  let filter;
+  if (!user) {
+    filter = { status: 'public' };
+    if (query.category) filter.categories = query.category;
+  } else {
+    filter = user.isOperator() ? buildAdminFilter(query) : buildUserFilter(user, query);
+  }
+  return paginate(News, filter, query.page, query.limit, [
     ['author', 'name avatar role'],
-    ['category', 'name'],
+    ['categories', 'name'],
   ]);
-  paginated.results = await attachReactionsAndComments(paginated.results);
-  return paginated;
 };
 
 const listNewsByCategory = async (user, categoryId, query) => {
@@ -111,15 +101,13 @@ const listNewsByCategory = async (user, categoryId, query) => {
     }
   }
 
-  const filter = { category: categoryId };
+  const filter = { categories: categoryId };
   filter.status = isOperator ? query.status || { $ne: 'deleted' } : 'public';
 
-  const paginated = await paginate(News, filter, query.page, query.limit, [
+  return paginate(News, filter, query.page, query.limit, [
     ['author', 'name avatar role'],
-    ['category', 'name'],
+    ['categories', 'name'],
   ]);
-  paginated.results = await attachReactionsAndComments(paginated.results);
-  return paginated;
 };
 
 const getNewsById = async (user, id) => {
@@ -129,9 +117,7 @@ const getNewsById = async (user, id) => {
   if (!isOperator && !isOwner && news.status !== 'public') {
     throw new ApiError(httpStatus.NOT_FOUND, 'Post not found');
   }
-  const populated = await News.findById(id).populate('author', 'name avatar role').populate('category', 'name');
-  const [withDetails] = await attachReactionsAndComments([populated]);
-  return withDetails;
+  return News.findById(id).populate('author', 'name avatar role').populate('categories', 'name');
 };
 
 const deleteNews = async (user, id) => {
@@ -172,6 +158,13 @@ const reactToNews = async (user, id, type) => {
   }
 
   await news.save();
+
+  if (type === 'like') {
+    notificationService
+      .createNotification({ recipient: news.author, sender: user.id, type: 'like', data: { newsId: id } })
+      .catch(() => {});
+  }
+
   return news;
 };
 
@@ -191,16 +184,26 @@ const removeReaction = async (user, id) => {
   return news;
 };
 
-const addComment = async (user, id, text) => {
+const listReactions = async (id, query) => {
   await getNewsOr404(id);
+  const filter = { news: id };
+  if (query.type) filter.type = query.type;
+  return paginate(Reaction, filter, query.page, query.limit, [['user', 'name avatar role']]);
+};
+
+const addComment = async (user, id, text) => {
+  const news = await getNewsOr404(id);
   const comment = await Comment.create({ news: id, author: user.id, text });
   await News.findByIdAndUpdate(id, { $inc: { commentsCount: 1 } });
+  notificationService
+    .createNotification({ recipient: news.author, sender: user.id, type: 'comment', data: { newsId: id, commentId: comment.id } })
+    .catch(() => {});
   return comment.populate('author', 'name avatar role');
 };
 
 const listComments = async (id, query) => {
   await getNewsOr404(id);
-  return paginate(Comment, { news: id }, query.page, query.limit, [['author', 'name avatar role']]);
+  return paginate(Comment, { news: id, parentComment: null }, query.page, query.limit, [['author', 'name avatar role']]);
 };
 
 const deleteComment = async (user, commentId) => {
@@ -213,11 +216,37 @@ const deleteComment = async (user, commentId) => {
     throw new ApiError(httpStatus.FORBIDDEN, 'You can only delete your own comments');
   }
   await comment.deleteOne();
-  await News.findByIdAndUpdate(comment.news, { $inc: { commentsCount: -1 } });
+  if (!comment.parentComment) {
+    await News.findByIdAndUpdate(comment.news, { $inc: { commentsCount: -1 } });
+  } else {
+    await Comment.findByIdAndUpdate(comment.parentComment, { $inc: { repliesCount: -1 } });
+  }
+};
+
+const addReply = async (user, newsId, commentId, text) => {
+  await getNewsOr404(newsId);
+  await getCommentOr404(commentId, newsId);
+  const reply = await Comment.create({ news: newsId, author: user.id, text, parentComment: commentId });
+  await Comment.findByIdAndUpdate(commentId, { $inc: { repliesCount: 1 } });
+  return reply.populate('author', 'name avatar role');
+};
+
+const listReplies = async (newsId, commentId, query) => {
+  await getNewsOr404(newsId);
+  await getCommentOr404(commentId, newsId);
+  return paginate(
+    Comment,
+    { parentComment: commentId },
+    query.page,
+    query.limit,
+    [['author', 'name avatar role']],
+    { createdAt: 1 },
+  );
 };
 
 module.exports = {
   addComment,
+  addReply,
   createNews,
   deleteComment,
   deleteNews,
@@ -225,6 +254,8 @@ module.exports = {
   listComments,
   listNews,
   listNewsByCategory,
+  listReactions,
+  listReplies,
   reactToNews,
   removeReaction,
 };

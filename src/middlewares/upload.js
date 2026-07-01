@@ -48,10 +48,12 @@ const fileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
+const MAX_NEWS_MEDIA = 5;
+
 const upload = multer({ storage, fileFilter, limits: { fileSize: MAX_FILE_SIZE_BYTES } });
 
 const uploadMedia = (req, res, next) => {
-  upload.single('media')(req, res, (err) => {
+  upload.array('media', MAX_NEWS_MEDIA)(req, res, (err) => {
     if (err) {
       if (err instanceof ApiError) {
         return next(err);
@@ -59,10 +61,13 @@ const uploadMedia = (req, res, next) => {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return next(new ApiError(httpStatus.BAD_REQUEST, 'File too large. Max size is 200MB'));
       }
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return next(new ApiError(httpStatus.BAD_REQUEST, `Maximum ${MAX_NEWS_MEDIA} media files allowed`));
+      }
       return next(new ApiError(httpStatus.BAD_REQUEST, err.message));
     }
-    if (!req.file) {
-      return next(new ApiError(httpStatus.BAD_REQUEST, 'Media file is required'));
+    if (!req.files || !req.files.length) {
+      return next(new ApiError(httpStatus.BAD_REQUEST, 'At least one media file is required'));
     }
     return next();
   });

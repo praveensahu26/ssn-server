@@ -2,6 +2,15 @@ const mongoose = require('mongoose');
 
 const toJSON = require('./plugins/toJSON.plugin');
 
+const mediaItemSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    key: { type: String, required: true },
+    type: { type: String, enum: ['image', 'video'], required: true },
+  },
+  { _id: false },
+);
+
 const newsSchema = mongoose.Schema(
   {
     author: {
@@ -9,18 +18,9 @@ const newsSchema = mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    type: {
-      type: String,
-      enum: ['image', 'video'],
-      required: true,
-    },
-    mediaUrl: {
-      type: String,
-      required: true,
-    },
-    mediaKey: {
-      type: String,
-      required: true,
+    media: {
+      type: [mediaItemSchema],
+      validate: { validator: (v) => v.length > 0, message: 'At least one media item is required' },
     },
     caption: {
       type: String,
@@ -33,17 +33,16 @@ const newsSchema = mongoose.Schema(
       default: null,
     },
     location: {
-      lat: { type: Number, default: null },
-      lng: { type: Number, default: null },
-      city: { type: String, trim: true, default: null },
-      state: { type: String, trim: true, default: null },
-      country: { type: String, trim: true, default: null },
+      type: String,
+      trim: true,
+      default: null,
     },
-    category: {
-      type: mongoose.SchemaTypes.ObjectId,
-      ref: 'Category',
-      required: true,
-    },
+    categories: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'Category',
+      },
+    ],
     status: {
       type: String,
       enum: ['public', 'flagged', 'deleted'],
