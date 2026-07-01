@@ -41,26 +41,23 @@ const deleteCoverPhoto = catchAsync(async (req, res) => {
 
 const getMyPosts = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await profileService.getMyPosts(req.user.id, req.query);
-  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', {
-    posts: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', { posts: results }, { page, limit, total, totalPages });
 });
 
 const getUserPosts = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await profileService.getUserPosts(req.params.userId, req.query);
-  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', {
-    posts: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', { posts: results }, { page, limit, total, totalPages });
 });
 
 const getSavedPosts = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await profileService.getSavedPosts(req.user, req.query);
-  sendSuccess(res, httpStatus.OK, 'Saved posts fetched successfully', {
-    posts: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Saved posts fetched successfully',
+    { posts: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const savePost = catchAsync(async (req, res) => {
@@ -75,18 +72,24 @@ const unsavePost = catchAsync(async (req, res) => {
 
 const getFollowing = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await profileService.getFollowing(req.user, req.query);
-  sendSuccess(res, httpStatus.OK, 'Following list fetched successfully', {
-    users: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Following list fetched successfully',
+    { users: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const getFollowers = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await profileService.getFollowers(req.user, req.query);
-  sendSuccess(res, httpStatus.OK, 'Followers list fetched successfully', {
-    users: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Followers list fetched successfully',
+    { users: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const followUser = catchAsync(async (req, res) => {

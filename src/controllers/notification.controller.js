@@ -6,10 +6,13 @@ const { sendSuccess } = require('../utils/response');
 
 const listNotifications = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await notificationService.listNotifications(req.user.id, req.query);
-  sendSuccess(res, httpStatus.OK, 'Notifications fetched successfully', {
-    notifications: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Notifications fetched successfully',
+    { notifications: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const getUnreadCount = catchAsync(async (req, res) => {
