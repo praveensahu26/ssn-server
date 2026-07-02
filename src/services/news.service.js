@@ -253,11 +253,19 @@ const removeReaction = async (user, id) => {
   return news;
 };
 
-const listReactions = async (id, query) => {
+const listReactions = async (user, id, query) => {
   await getNewsOr404(id);
   const filter = { news: id };
   if (query.type) filter.type = query.type;
-  return paginate(Reaction, filter, query.page, query.limit, [['user', 'name avatar role']]);
+  const result = await paginate(Reaction, filter, query.page, query.limit, [['user', 'name avatar role']]);
+  const followingSet = new Set(user.following.map((fid) => fid.toString()));
+  return {
+    ...result,
+    results: result.results.map((reaction) => ({
+      ...reaction.toJSON(),
+      isFollow: followingSet.has(reaction.user.id),
+    })),
+  };
 };
 
 const addComment = async (user, id, text) => {
