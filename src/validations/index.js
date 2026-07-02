@@ -1,3 +1,4 @@
+const adminAccountValidation = require('./adminAccount.validation');
 const adminCampaignValidation = require('./adminCampaign.validation');
 const adminReporterValidation = require('./adminReporter.validation');
 const authValidation = require('./auth.validation');
@@ -11,6 +12,7 @@ const profileValidation = require('./profile.validation');
 const settingsValidation = require('./settings.validation');
 
 module.exports = {
+  adminAccountValidation,
   adminCampaignValidation,
   adminReporterValidation,
   authValidation,
@@ -23,4 +25,3 @@ module.exports = {
   profileValidation,
   settingsValidation,
 };
-
