@@ -79,6 +79,27 @@ const buildUserFilter = (user, query) => {
   return filter;
 };
 
+const attachUserContext = async (posts, user) => {
+  if (!user) {
+    return posts.map((post) => ({ ...post.toJSON(), isLike: false, isFollow: false, isMyPost: false }));
+  }
+
+  const postIds = posts.map((post) => post.id);
+  const likedReactions = await Reaction.find({ news: { $in: postIds }, user: user.id, type: 'like' }).select('news');
+  const likedSet = new Set(likedReactions.map((r) => r.news.toString()));
+  const followingSet = new Set(user.following.map((id) => id.toString()));
+
+  return posts.map((post) => {
+    const authorId = post.author.id;
+    return {
+      ...post.toJSON(),
+      isLike: likedSet.has(post.id),
+      isFollow: followingSet.has(authorId),
+      isMyPost: authorId === user.id,
+    };
+  });
+};
+
 const listNews = async (user, query) => {
   let filter;
   if (!user) {
@@ -87,10 +108,11 @@ const listNews = async (user, query) => {
   } else {
     filter = user.isOperator() ? buildAdminFilter(query) : buildUserFilter(user, query);
   }
-  return paginate(News, filter, query.page, query.limit, [
+  const result = await paginate(News, filter, query.page, query.limit, [
     ['author', 'name avatar role'],
     ['categories', 'name'],
   ]);
+  return { ...result, results: await attachUserContext(result.results, user) };
 };
 
 const listNewsByCategory = async (user, categoryId, query) => {
@@ -123,7 +145,9 @@ const getNewsById = async (user, id) => {
   if (!isOperator && !isOwner && news.status !== 'public') {
     throw new ApiError(httpStatus.NOT_FOUND, 'Post not found');
   }
-  return News.findById(id).populate('author', 'name avatar role').populate('categories', 'name');
+  const populated = await News.findById(id).populate('author', 'name avatar role').populate('categories', 'name');
+  const [result] = await attachUserContext([populated], user);
+  return result;
 };
 
 const updateNews = async (user, id, body) => {
