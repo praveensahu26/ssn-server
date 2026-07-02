@@ -73,11 +73,8 @@ const buildUserFilter = (user, query) => {
     return filter;
   }
 
-  // Feed mode: public posts filtered by followed categories (all public if none followed)
+  // Feed mode: all public posts, optionally narrowed to a single requested category
   const filter = { status: 'public' };
-  if (user.followedCategories && user.followedCategories.length > 0) {
-    filter.categories = { $in: user.followedCategories };
-  }
   if (query.category) filter.categories = query.category;
   return filter;
 };
