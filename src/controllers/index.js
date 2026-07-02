@@ -1,3 +1,4 @@
+const adminAccountController = require('./adminAccount.controller');
 const adminCampaignController = require('./adminCampaign.controller');
 const adminCategoryController = require('./adminCategory.controller');
 const adminReporterController = require('./adminReporter.controller');
@@ -13,6 +14,7 @@ const settingsController = require('./settings.controller');
 const stripeWebhookController = require('./stripeWebhook.controller');
 
 module.exports = {
+  adminAccountController,
   adminCampaignController,
   adminCategoryController,
   adminReporterController,
@@ -27,4 +29,3 @@ module.exports = {
   settingsController,
   stripeWebhookController,
 };
-
