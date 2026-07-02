@@ -59,7 +59,7 @@ const removeReaction = catchAsync(async (req, res) => {
 });
 
 const listReactions = catchAsync(async (req, res) => {
-  const { results, page, limit, total, totalPages } = await newsService.listReactions(req.params.id, req.query);
+  const { results, page, limit, total, totalPages } = await newsService.listReactions(req.user, req.params.id, req.query);
   sendSuccess(
     res,
     httpStatus.OK,
