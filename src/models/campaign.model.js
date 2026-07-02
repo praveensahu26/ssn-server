@@ -21,11 +21,12 @@ const campaignSchema = mongoose.Schema(
       trim: true,
       default: null,
     },
-    category: {
-      type: mongoose.SchemaTypes.ObjectId,
-      ref: 'Category',
-      required: true,
-    },
+    categories: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'Category',
+      },
+    ],
     tags: {
       type: [String],
       default: [],
@@ -100,13 +101,19 @@ const campaignSchema = mongoose.Schema(
       type: Date,
       default: null,
     },
+    mutedBy: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true,
   },
 );
 
-campaignSchema.index({ status: 1, category: 1, createdAt: -1 });
+campaignSchema.index({ status: 1, categories: 1, createdAt: -1 });
 campaignSchema.index({ organizer: 1, status: 1 });
 
 campaignSchema.plugin(toJSON);

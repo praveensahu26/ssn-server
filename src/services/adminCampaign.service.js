@@ -25,7 +25,7 @@ const buildAdminFilter = (query) => {
   if (query.tab && query.tab !== 'overview') {
     filter.status = STATUS_BY_TAB[query.tab];
   }
-  if (query.category) filter.category = query.category;
+  if (query.categories) filter.categories = { $in: Array.isArray(query.categories) ? query.categories : [query.categories] };
   if (query.organizer) filter.organizer = query.organizer;
   if (query.dateFrom || query.dateTo) {
     filter.createdAt = {};
@@ -38,12 +38,12 @@ const buildAdminFilter = (query) => {
 const listCampaigns = (query) =>
   paginate(Campaign, buildAdminFilter(query), query.page, query.limit, [
     ['organizer', 'name avatar role'],
-    ['category', 'name'],
+    ['categories', 'name'],
   ]);
 
 const getCampaignById = async (id) => {
   const campaign = await getCampaignOr404(id);
-  return campaign.populate('organizer', 'name avatar role').populate('category', 'name');
+  return campaign.populate('organizer', 'name avatar role').populate('categories', 'name');
 };
 
 const sumRaisedAmount = async (filter) => {
