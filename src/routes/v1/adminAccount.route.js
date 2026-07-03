@@ -17,6 +17,8 @@ router.get('/:id/posts', validate(adminAccountValidation.listPosts), adminAccoun
 router.get('/:id/campaigns', validate(adminAccountValidation.listCampaigns), adminAccountController.listCampaigns);
 router.get('/:id', validate(adminAccountValidation.accountId), adminAccountController.getAccount);
 
+router.post('/bulk-status', validate(adminAccountValidation.bulkStatusUpdate), adminAccountController.bulkUpdateStatus);
+
 router.post('/:id/warn', validate(adminAccountValidation.moderationAction), adminAccountController.warnAccount);
 router.post('/:id/block', validate(adminAccountValidation.moderationAction), adminAccountController.blockAccount);
 router.post('/:id/suspend', validate(adminAccountValidation.moderationAction), adminAccountController.suspendAccount);

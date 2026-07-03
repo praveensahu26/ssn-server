@@ -84,8 +84,15 @@ const deleteAccount = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.OK, 'Account deleted successfully');
 });
 
+const bulkUpdateStatus = catchAsync(async (req, res) => {
+  const { ids, status } = req.body;
+  await adminAccountService.bulkUpdateStatus(ids, status);
+  sendSuccess(res, httpStatus.OK, 'Accounts status updated successfully');
+});
+
 module.exports = {
   blockAccount,
+  bulkUpdateStatus,
   deactivateAccount,
   deleteAccount,
   getAccount,
