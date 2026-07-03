@@ -69,9 +69,17 @@ const moderationAction = {
   }),
 };
 
+const bulkStatusUpdate = {
+  body: Joi.object().keys({
+    ids: Joi.array().items(objectId.required()).min(1).required(),
+    status: Joi.string().valid('active', 'inactive', 'blocked', 'suspended').required(),
+  }),
+};
+
 module.exports = {
   accountId,
   accountStats,
+  bulkStatusUpdate,
   listAccounts,
   listCampaigns,
   listPosts,

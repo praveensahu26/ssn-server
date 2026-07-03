@@ -187,4 +187,19 @@ describe('Admin accounts', () => {
     expect(res.body.data.account.status).toEqual({ value: 'blocked', reason: 'Repeated abuse' });
     await expect(User.findById(user.id).then((doc) => doc.status)).resolves.toBe('blocked');
   });
+
+  test('updates status in bulk', async () => {
+    const admin = await User.create(makeAdmin());
+    const user1 = await User.create(makeUser({ email: uniqueEmail('bulk1'), status: 'active' }));
+    const user2 = await User.create(makeUser({ email: uniqueEmail('bulk2'), status: 'active' }));
+
+    await request(app)
+      .post('/v1/admin/accounts/bulk-status')
+      .set('Authorization', `Bearer ${await tokenFor(admin)}`)
+      .send({ ids: [user1.id, user2.id], status: 'blocked' })
+      .expect(200);
+
+    await expect(User.findById(user1.id).then((doc) => doc.status)).resolves.toBe('blocked');
+    await expect(User.findById(user2.id).then((doc) => doc.status)).resolves.toBe('blocked');
+  });
 });

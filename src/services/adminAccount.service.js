@@ -358,7 +358,15 @@ const softDeleteAccount = async (id) => {
   await user.save();
 };
 
+const bulkUpdateStatus = async (ids, status) => {
+  await User.updateMany(
+    { _id: { $in: ids }, isDeleted: false },
+    { status }
+  );
+};
+
 module.exports = {
+  bulkUpdateStatus,
   getAccount,
   getAccountStats,
   listAccounts,
