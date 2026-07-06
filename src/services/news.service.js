@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 
-const { Category, Comment, CommentReaction, News, Reaction } = require('../models');
+const { Category, Comment, CommentReaction, News, Reaction, Report } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
 const notificationService = require('./notification.service');
@@ -64,13 +64,40 @@ const buildUserFilter = (user, query) => {
     if (query.category) filter.categories = query.category;
     return filter;
   }
-  // Feed mode: public posts filtered by followed categories (all public if none followed)
-  const filter = { status: 'public' };
-  if (user.followedCategories && user.followedCategories.length > 0) {
-    filter.categories = { $in: user.followedCategories };
+
+  if (query.isConnection) {
+    const followingSet = new Set(user.following.map((id) => id.toString()));
+    const connectionIds = user.followers.filter((id) => followingSet.has(id.toString()));
+    const filter = { status: 'public', author: { $in: connectionIds } };
+    if (query.category) filter.categories = query.category;
+    return filter;
   }
+
+  // Feed mode: all public posts, optionally narrowed to a single requested category
+  const filter = { status: 'public' };
   if (query.category) filter.categories = query.category;
   return filter;
+};
+
+const attachUserContext = async (posts, user) => {
+  if (!user) {
+    return posts.map((post) => ({ ...post.toJSON(), isLike: false, isFollow: false, isMyPost: false }));
+  }
+
+  const postIds = posts.map((post) => post.id);
+  const likedReactions = await Reaction.find({ news: { $in: postIds }, user: user.id, type: 'like' }).select('news');
+  const likedSet = new Set(likedReactions.map((r) => r.news.toString()));
+  const followingSet = new Set(user.following.map((id) => id.toString()));
+
+  return posts.map((post) => {
+    const authorId = post.author.id;
+    return {
+      ...post.toJSON(),
+      isLike: likedSet.has(post.id),
+      isFollow: followingSet.has(authorId),
+      isMyPost: authorId === user.id,
+    };
+  });
 };
 
 const listNews = async (user, query) => {
@@ -81,10 +108,11 @@ const listNews = async (user, query) => {
   } else {
     filter = user.isOperator() ? buildAdminFilter(query) : buildUserFilter(user, query);
   }
-  return paginate(News, filter, query.page, query.limit, [
+  const result = await paginate(News, filter, query.page, query.limit, [
     ['author', 'name avatar role'],
     ['categories', 'name'],
   ]);
+  return { ...result, results: await attachUserContext(result.results, user) };
 };
 
 const listNewsByCategory = async (user, categoryId, query) => {
@@ -117,7 +145,48 @@ const getNewsById = async (user, id) => {
   if (!isOperator && !isOwner && news.status !== 'public') {
     throw new ApiError(httpStatus.NOT_FOUND, 'Post not found');
   }
+  const populated = await News.findById(id).populate('author', 'name avatar role').populate('categories', 'name');
+  const [result] = await attachUserContext([populated], user);
+  return result;
+};
+
+const updateNews = async (user, id, body) => {
+  const news = await getNewsOr404(id);
+  if (news.author.toString() !== user.id) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You can only edit your own posts');
+  }
+
+  if (body.categories !== undefined) {
+    const categoryIds = Array.isArray(body.categories) ? body.categories : [body.categories];
+    const categoryDocs = await Category.find({ _id: { $in: categoryIds } });
+    if (categoryDocs.length !== categoryIds.length) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'One or more invalid categories');
+    }
+    news.categories = categoryIds;
+  }
+  if (body.caption !== undefined) news.caption = body.caption;
+  if (body.description !== undefined) news.description = body.description || null;
+  if (body.location !== undefined) news.location = body.location || null;
+
+  await news.save();
   return News.findById(id).populate('author', 'name avatar role').populate('categories', 'name');
+};
+
+const reportNews = async (user, id, { reason, description }) => {
+  const news = await getNewsOr404(id);
+  if (news.status === 'deleted') throw new ApiError(httpStatus.NOT_FOUND, 'Post not found');
+  if (news.author.toString() === user.id) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'You cannot report your own post');
+  }
+
+  try {
+    await Report.create({ reporter: user.id, news: id, reason, description: description || null });
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new ApiError(httpStatus.CONFLICT, 'You have already reported this post');
+    }
+    throw err;
+  }
 };
 
 const deleteNews = async (user, id) => {
@@ -184,11 +253,19 @@ const removeReaction = async (user, id) => {
   return news;
 };
 
-const listReactions = async (id, query) => {
+const listReactions = async (user, id, query) => {
   await getNewsOr404(id);
   const filter = { news: id };
   if (query.type) filter.type = query.type;
-  return paginate(Reaction, filter, query.page, query.limit, [['user', 'name avatar role']]);
+  const result = await paginate(Reaction, filter, query.page, query.limit, [['user', 'name avatar role']]);
+  const followingSet = new Set(user.following.map((fid) => fid.toString()));
+  return {
+    ...result,
+    results: result.results.map((reaction) => ({
+      ...reaction.toJSON(),
+      isFollow: followingSet.has(reaction.user.id),
+    })),
+  };
 };
 
 const addComment = async (user, id, text) => {
@@ -317,4 +394,6 @@ module.exports = {
   reactToReply,
   removeReaction,
   incrementShareCount,
+  reportNews,
+  updateNews,
 };

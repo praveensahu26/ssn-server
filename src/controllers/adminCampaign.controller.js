@@ -9,10 +9,13 @@ const { sendSuccess } = require('../utils/response');
 
 const listCampaigns = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await adminCampaignService.listCampaigns(req.query);
-  sendSuccess(res, httpStatus.OK, 'Campaigns fetched successfully', {
-    campaigns: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Campaigns fetched successfully',
+    { campaigns: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const getCampaignStats = catchAsync(async (req, res) => {
