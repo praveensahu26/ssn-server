@@ -45,9 +45,9 @@ router.post('/:id/share', authenticate, validate(newsValidation.newsId), newsCon
 router.get('/:id/reactions', authenticate, validate(newsValidation.listReactions), newsController.listReactions);
 router.get('/:id/comments', authenticate, validate(newsValidation.listComments), newsController.listComments);
 router.post('/:id/comments', authenticate, validate(newsValidation.addComment), newsController.addComment);
-router.post('/comments/:commentId/like', authenticate, validate(newsValidation.commentId), newsController.likeComment);
-router.post('/comments/:commentId/dislike', authenticate, validate(newsValidation.commentId), newsController.dislikeComment);
-router.delete('/comments/:commentId', authenticate, validate(newsValidation.commentId), newsController.deleteComment);
+router.post('/:id/comments/:commentId/like', authenticate, validate(newsValidation.commentReaction), newsController.likeComment);
+router.post('/:id/comments/:commentId/dislike', authenticate, validate(newsValidation.commentReaction), newsController.dislikeComment);
+router.delete('/:id/comments/:commentId', authenticate, validate(newsValidation.commentReaction), newsController.deleteComment);
 router.post('/:id/comments/:commentId/replies', authenticate, validate(newsValidation.addReply), newsController.addReply);
 router.post(
   '/:id/comments/:commentId/replies/:replyId/like',

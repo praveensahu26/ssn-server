@@ -47,6 +47,13 @@ const commentId = {
   }),
 };
 
+const commentReaction = {
+  params: Joi.object().keys({
+    id: objectId.required(),
+    commentId: objectId.required(),
+  }),
+};
+
 const addComment = {
   params: Joi.object().keys({
     id: objectId.required(),
@@ -131,6 +138,7 @@ module.exports = {
   addComment,
   addReply,
   commentId,
+  commentReaction,
   createNews,
   listComments,
   listNews,
