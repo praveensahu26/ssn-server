@@ -59,7 +59,7 @@ const buildCategoriesFilter = (query) => {
 };
 
 const buildDiscoverFilter = (query) => {
-  const filter = { status: { $in: ['active', 'completed'] } };
+  const filter = {};
   const categoriesFilter = buildCategoriesFilter(query);
   if (categoriesFilter) filter.categories = categoriesFilter;
   return filter;

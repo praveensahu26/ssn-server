@@ -42,8 +42,13 @@ const listCampaigns = (query) =>
   ]);
 
 const getCampaignById = async (id) => {
-  const campaign = await getCampaignOr404(id);
-  return campaign.populate('organizer', 'name avatar role').populate('categories', 'name');
+  const campaign = await Campaign.findById(id)
+    .populate('organizer', 'name avatar role')
+    .populate('categories', 'name');
+  if (!campaign) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Campaign not found');
+  }
+  return campaign;
 };
 
 const sumRaisedAmount = async (filter) => {
