@@ -1,10 +1,6 @@
 const httpStatus = require('http-status');
 
-<<<<<<< HEAD
-const { Category, Comment, CommentReaction, News, Reaction } = require('../models');
-=======
-const { Category, Comment, News, Reaction, Report } = require('../models');
->>>>>>> newrepo2/development
+const { Category, Comment, CommentReaction, News, Reaction, Report } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
 const notificationService = require('./notification.service');
@@ -397,10 +393,7 @@ module.exports = {
   reactToNews,
   reactToReply,
   removeReaction,
-<<<<<<< HEAD
   incrementShareCount,
-=======
   reportNews,
   updateNews,
->>>>>>> newrepo2/development
 };

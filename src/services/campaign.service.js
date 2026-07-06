@@ -96,18 +96,18 @@ const getCampaignById = async (user, id) => {
   return attachProgress(populated);
 };
 
-<<<<<<< HEAD
 const incrementShareCount = async (id) => {
   const campaign = await Campaign.findByIdAndUpdate(
     id,
     { $inc: { sharesCount: 1 } },
     { new: true }
-  ).populate('organizer', 'name avatar role').populate('category', 'name');
+  ).populate('organizer', 'name avatar role').populate('categories', 'name');
   if (!campaign) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Campaign not found');
   }
   return attachProgress(campaign);
-=======
+};
+
 const requireOwner = (campaign, user) => {
   if (campaign.organizer.toString() !== user.id) {
     throw new ApiError(httpStatus.FORBIDDEN, 'You can only manage your own campaigns');
@@ -204,7 +204,6 @@ const reportCampaign = async (user, id, { reason, description }) => {
     }
     throw err;
   }
->>>>>>> newrepo2/development
 };
 
 module.exports = {
@@ -214,11 +213,8 @@ module.exports = {
   editCampaign,
   getCampaignById,
   listCampaigns,
-<<<<<<< HEAD
   incrementShareCount,
-=======
   redriveCampaign,
   reportCampaign,
   toggleMute,
->>>>>>> newrepo2/development
 };

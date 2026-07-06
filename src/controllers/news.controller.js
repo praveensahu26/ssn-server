@@ -146,10 +146,7 @@ module.exports = {
   listReactions,
   listReplies,
   removeReaction,
-<<<<<<< HEAD
   shareNews,
-=======
   reportNews,
   updateNews,
->>>>>>> newrepo2/development
 };

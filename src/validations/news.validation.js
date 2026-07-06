@@ -138,10 +138,7 @@ module.exports = {
   listReactions,
   listReplies,
   newsId,
-<<<<<<< HEAD
   replyReaction,
-=======
   reportNews,
   updateNews,
->>>>>>> newrepo2/development
 };

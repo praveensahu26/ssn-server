@@ -86,11 +86,8 @@ module.exports = {
   getCampaign,
   listCampaigns,
   listSupportFeed,
-<<<<<<< HEAD
   shareCampaign,
-=======
   redriveCampaign,
   reportCampaign,
   toggleMute,
->>>>>>> newrepo2/development
 };
