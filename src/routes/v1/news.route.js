@@ -35,7 +35,9 @@ router.get(
   newsController.listNewsByCategory,
 );
 router.get('/:id', optionalAuthenticate, validate(newsValidation.newsId), newsController.getNews);
+router.patch('/:id', authenticate, validate(newsValidation.updateNews), newsController.updateNews);
 router.delete('/:id', authenticate, validate(newsValidation.newsId), newsController.deleteNews);
+router.post('/:id/report', authenticate, validate(newsValidation.reportNews), newsController.reportNews);
 router.post('/:id/like', authenticate, validate(newsValidation.newsId), newsController.likeNews);
 router.post('/:id/dislike', authenticate, validate(newsValidation.newsId), newsController.dislikeNews);
 router.delete('/:id/reaction', authenticate, validate(newsValidation.newsId), newsController.removeReaction);

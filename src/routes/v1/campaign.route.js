@@ -17,7 +17,16 @@ router.post(
 );
 router.get('/', authenticate, validate(campaignValidation.listCampaigns), campaignController.listCampaigns);
 router.get('/:id', optionalAuthenticate, validate(campaignValidation.campaignId), campaignController.getCampaign);
+<<<<<<< HEAD
 router.post('/:id/share', authenticate, validate(campaignValidation.campaignId), campaignController.shareCampaign);
+=======
+router.patch('/:id', authenticate, validate(campaignValidation.editCampaign), campaignController.editCampaign);
+router.delete('/:id', authenticate, validate(campaignValidation.campaignId), campaignController.deleteCampaign);
+router.post('/:id/redrive', authenticate, validate(campaignValidation.campaignId), campaignController.redriveCampaign);
+router.post('/:id/complete', authenticate, validate(campaignValidation.campaignId), campaignController.completeCampaign);
+router.post('/:id/mute', authenticate, validate(campaignValidation.campaignId), campaignController.toggleMute);
+router.post('/:id/report', authenticate, validate(campaignValidation.reportCampaign), campaignController.reportCampaign);
+>>>>>>> newrepo2/development
 router.post('/:id/donate', authenticate, validate(campaignValidation.donate), campaignController.donate);
 router.get('/:id/support', validate(campaignValidation.listSupportFeed), campaignController.listSupportFeed);
 

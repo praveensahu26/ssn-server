@@ -11,10 +11,7 @@ const createNews = catchAsync(async (req, res) => {
 
 const listNews = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await newsService.listNews(req.user, req.query);
-  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', {
-    posts: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', { posts: results }, { page, limit, total, totalPages });
 });
 
 const listNewsByCategory = catchAsync(async (req, res) => {
@@ -23,15 +20,22 @@ const listNewsByCategory = catchAsync(async (req, res) => {
     req.params.categoryId,
     req.query,
   );
-  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', {
-    posts: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(res, httpStatus.OK, 'Posts fetched successfully', { posts: results }, { page, limit, total, totalPages });
 });
 
 const getNews = catchAsync(async (req, res) => {
   const news = await newsService.getNewsById(req.user, req.params.id);
   sendSuccess(res, httpStatus.OK, 'Post fetched successfully', { news });
+});
+
+const updateNews = catchAsync(async (req, res) => {
+  const news = await newsService.updateNews(req.user, req.params.id, req.body);
+  sendSuccess(res, httpStatus.OK, 'Post updated successfully', { news });
+});
+
+const reportNews = catchAsync(async (req, res) => {
+  await newsService.reportNews(req.user, req.params.id, req.body);
+  sendSuccess(res, httpStatus.CREATED, 'Post reported successfully');
 });
 
 const deleteNews = catchAsync(async (req, res) => {
@@ -55,11 +59,14 @@ const removeReaction = catchAsync(async (req, res) => {
 });
 
 const listReactions = catchAsync(async (req, res) => {
-  const { results, page, limit, total, totalPages } = await newsService.listReactions(req.params.id, req.query);
-  sendSuccess(res, httpStatus.OK, 'Reactions fetched successfully', {
-    reactions: results,
-    meta: { page, limit, total, totalPages },
-  });
+  const { results, page, limit, total, totalPages } = await newsService.listReactions(req.user, req.params.id, req.query);
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Reactions fetched successfully',
+    { reactions: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const addComment = catchAsync(async (req, res) => {
@@ -69,10 +76,13 @@ const addComment = catchAsync(async (req, res) => {
 
 const listComments = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await newsService.listComments(req.params.id, req.query);
-  sendSuccess(res, httpStatus.OK, 'Comments fetched successfully', {
-    comments: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Comments fetched successfully',
+    { comments: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const likeComment = catchAsync(async (req, res) => {
@@ -109,10 +119,7 @@ const listReplies = catchAsync(async (req, res) => {
     req.params.commentId,
     req.query,
   );
-  sendSuccess(res, httpStatus.OK, 'Replies fetched successfully', {
-    replies: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(res, httpStatus.OK, 'Replies fetched successfully', { replies: results }, { page, limit, total, totalPages });
 });
 
 const shareNews = catchAsync(async (req, res) => {
@@ -139,5 +146,10 @@ module.exports = {
   listReactions,
   listReplies,
   removeReaction,
+<<<<<<< HEAD
   shareNews,
+=======
+  reportNews,
+  updateNews,
+>>>>>>> newrepo2/development
 };

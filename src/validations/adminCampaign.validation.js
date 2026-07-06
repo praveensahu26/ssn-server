@@ -14,7 +14,7 @@ const listCampaigns = {
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),
     tab: Joi.string().valid('overview', 'active', 'completed', 'requests', 'suspended').default('overview'),
-    category: objectId,
+    categories: Joi.array().items(objectId).single(),
     organizer: objectId,
     dateFrom: Joi.date().iso(),
     dateTo: Joi.date().iso(),

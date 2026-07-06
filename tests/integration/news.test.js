@@ -184,7 +184,7 @@ describe('GET /v1/news (role-based getAll)', () => {
 
     expect(res.body.data.posts).toHaveLength(1);
     expect(res.body.data.posts[0].caption).toBe('a');
-    expect(res.body.data.meta).toMatchObject({ page: 1, total: 1 });
+    expect(res.body.meta).toMatchObject({ page: 1, total: 1 });
   });
 
   test('regular user with no followed categories sees all public posts', async () => {
@@ -230,7 +230,7 @@ describe('GET /v1/news (role-based getAll)', () => {
 
     const res = await request(app).get('/v1/news?page=1&limit=2').set('Authorization', `Bearer ${token}`).expect(200);
     expect(res.body.data.posts).toHaveLength(2);
-    expect(res.body.data.meta).toMatchObject({ page: 1, limit: 2, total: 5, totalPages: 3 });
+    expect(res.body.meta).toMatchObject({ page: 1, limit: 2, total: 5, totalPages: 3 });
   });
 
   test('admin sees all posts including flagged, and can filter by status/category', async () => {
@@ -413,7 +413,7 @@ describe('Reactions', () => {
 
     const all = await request(app).get(`/v1/news/${news.id}/reactions`).set('Authorization', `Bearer ${token}`).expect(200);
     expect(all.body.data.reactions).toHaveLength(2);
-    expect(all.body.data.meta).toMatchObject({ page: 1, total: 2 });
+    expect(all.body.meta).toMatchObject({ page: 1, total: 2 });
 
     const likesOnly = await request(app)
       .get(`/v1/news/${news.id}/reactions?type=like`)
@@ -466,7 +466,7 @@ describe('Comments', () => {
 
     const list = await request(app).get(`/v1/news/${news.id}/comments`).set('Authorization', `Bearer ${token}`).expect(200);
     expect(list.body.data.comments).toHaveLength(1);
-    expect(list.body.data.meta).toMatchObject({ page: 1, total: 1 });
+    expect(list.body.meta).toMatchObject({ page: 1, total: 1 });
   });
 
   test('listComments only returns top-level comments, not replies', async () => {
@@ -628,7 +628,7 @@ describe('Comment Replies', () => {
       .expect(200);
 
     expect(res.body.data.replies).toHaveLength(2);
-    expect(res.body.data.meta).toMatchObject({ page: 1, limit: 2, total: 3, totalPages: 2 });
+    expect(res.body.meta).toMatchObject({ page: 1, limit: 2, total: 3, totalPages: 2 });
     expect(res.body.data.replies[0].text).toBe('reply 0');
     expect(res.body.data.replies[1].text).toBe('reply 1');
   });

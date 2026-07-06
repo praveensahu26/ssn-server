@@ -6,10 +6,13 @@ const { sendSuccess } = require('../utils/response');
 
 const listReporters = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await adminReporterService.listReporters(req.query);
-  sendSuccess(res, httpStatus.OK, 'Reporters fetched successfully', {
-    reporters: results,
-    meta: { page, limit, total, totalPages },
-  });
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'Reporters fetched successfully',
+    { reporters: results },
+    { page, limit, total, totalPages },
+  );
 });
 
 const approveReporter = catchAsync(async (req, res) => {

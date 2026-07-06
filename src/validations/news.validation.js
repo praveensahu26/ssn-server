@@ -20,6 +20,7 @@ const listNews = {
     status: Joi.string().valid('public', 'flagged', 'deleted'),
     dateFrom: Joi.date().iso(),
     dateTo: Joi.date().iso(),
+    isConnection: Joi.boolean(),
   }),
 };
 
@@ -104,6 +105,28 @@ const listReplies = {
   }),
 };
 
+const updateNews = {
+  params: Joi.object().keys({ id: objectId.required() }),
+  body: Joi.object()
+    .keys({
+      caption: Joi.string().trim(),
+      description: Joi.string().trim().allow(null, ''),
+      categories: Joi.array().items(objectId).single().min(1),
+      location: Joi.string().trim().allow(null, ''),
+    })
+    .min(1),
+};
+
+const reportNews = {
+  params: Joi.object().keys({ id: objectId.required() }),
+  body: Joi.object().keys({
+    reason: Joi.string()
+      .valid('spam', 'misinformation', 'hate_speech', 'violence', 'nudity', 'harassment', 'other')
+      .required(),
+    description: Joi.string().trim().max(500).allow(null, ''),
+  }),
+};
+
 module.exports = {
   addComment,
   addReply,
@@ -115,5 +138,10 @@ module.exports = {
   listReactions,
   listReplies,
   newsId,
+<<<<<<< HEAD
   replyReaction,
+=======
+  reportNews,
+  updateNews,
+>>>>>>> newrepo2/development
 };
