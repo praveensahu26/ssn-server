@@ -35,10 +35,16 @@ const listSupportFeed = catchAsync(async (req, res) => {
   });
 });
 
+const shareCampaign = catchAsync(async (req, res) => {
+  const campaign = await campaignService.incrementShareCount(req.params.id);
+  sendSuccess(res, httpStatus.OK, 'Share recorded successfully', { campaign });
+});
+
 module.exports = {
   createCampaign,
   donate,
   getCampaign,
   listCampaigns,
   listSupportFeed,
+  shareCampaign,
 };
