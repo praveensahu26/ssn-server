@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 
-const { Category, Comment, News, Reaction, Report } = require('../models');
+const { Category, Comment, CommentReaction, News, Reaction, Report } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
 const notificationService = require('./notification.service');
@@ -273,7 +273,12 @@ const addComment = async (user, id, text) => {
   const comment = await Comment.create({ news: id, author: user.id, text });
   await News.findByIdAndUpdate(id, { $inc: { commentsCount: 1 } });
   notificationService
-    .createNotification({ recipient: news.author, sender: user.id, type: 'comment', data: { newsId: id, commentId: comment.id } })
+    .createNotification({
+      recipient: news.author,
+      sender: user.id,
+      type: 'comment',
+      data: { newsId: id, commentId: comment.id },
+    })
     .catch(() => {});
   return comment.populate('author', 'name avatar role');
 };
@@ -283,6 +288,49 @@ const listComments = async (id, query) => {
   return paginate(Comment, { news: id, parentComment: null }, query.page, query.limit, [['author', 'name avatar role']]);
 };
 
+const reactToComment = async (user, commentId, type) => {
+  const comment = await Comment.findById(commentId);
+  if (!comment) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Comment not found');
+  }
+
+  const existing = await CommentReaction.findOne({ comment: commentId, user: user.id });
+  if (existing && existing.type === type) {
+    return comment;
+  }
+
+  if (existing) {
+    existing.type = type;
+    await existing.save();
+    if (type === 'like') {
+      comment.likesCount = (comment.likesCount || 0) + 1;
+      comment.dislikesCount = Math.max(0, (comment.dislikesCount || 0) - 1);
+    } else {
+      comment.dislikesCount = (comment.dislikesCount || 0) + 1;
+      comment.likesCount = Math.max(0, (comment.likesCount || 0) - 1);
+    }
+  } else {
+    await CommentReaction.create({ comment: commentId, user: user.id, type });
+    if (type === 'like') {
+      comment.likesCount = (comment.likesCount || 0) + 1;
+    } else {
+      comment.dislikesCount = (comment.dislikesCount || 0) + 1;
+    }
+  }
+
+  await comment.save();
+  return comment.populate('author', 'name avatar role');
+};
+const reactToReply = async (user, newsId, commentId, replyId, type) => {
+  await getNewsOr404(newsId);
+  await getCommentOr404(commentId, newsId);
+  const reply = await Comment.findOne({ _id: replyId, news: newsId, parentComment: commentId });
+  if (!reply) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Reply not found');
+  }
+
+  return reactToComment(user, replyId, type);
+};
 const deleteComment = async (user, commentId) => {
   const comment = await Comment.findById(commentId);
   if (!comment) {
@@ -293,6 +341,7 @@ const deleteComment = async (user, commentId) => {
     throw new ApiError(httpStatus.FORBIDDEN, 'You can only delete your own comments');
   }
   await comment.deleteOne();
+  await CommentReaction.deleteMany({ comment: commentId });
   if (!comment.parentComment) {
     await News.findByIdAndUpdate(comment.news, { $inc: { commentsCount: -1 } });
   } else {
@@ -311,14 +360,21 @@ const addReply = async (user, newsId, commentId, text) => {
 const listReplies = async (newsId, commentId, query) => {
   await getNewsOr404(newsId);
   await getCommentOr404(commentId, newsId);
-  return paginate(
-    Comment,
-    { parentComment: commentId },
-    query.page,
-    query.limit,
-    [['author', 'name avatar role']],
-    { createdAt: 1 },
+  return paginate(Comment, { parentComment: commentId }, query.page, query.limit, [['author', 'name avatar role']], {
+    createdAt: 1,
+  });
+};
+
+const incrementShareCount = async (newsId) => {
+  const news = await News.findByIdAndUpdate(
+    newsId,
+    { $inc: { sharesCount: 1 } },
+    { new: true }
   );
+  if (!news) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Post not found');
+  }
+  return news;
 };
 
 module.exports = {
@@ -333,8 +389,11 @@ module.exports = {
   listNewsByCategory,
   listReactions,
   listReplies,
+  reactToComment,
   reactToNews,
+  reactToReply,
   removeReaction,
+  incrementShareCount,
   reportNews,
   updateNews,
 };

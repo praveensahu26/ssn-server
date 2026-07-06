@@ -87,6 +87,13 @@ const addReply = {
   }),
 };
 
+const replyReaction = {
+  params: Joi.object().keys({
+    id: objectId.required(),
+    commentId: objectId.required(),
+    replyId: objectId.required(),
+  }),
+};
 const listReplies = {
   params: Joi.object().keys({
     id: objectId.required(),
@@ -131,6 +138,7 @@ module.exports = {
   listReactions,
   listReplies,
   newsId,
+  replyReaction,
   reportNews,
   updateNews,
 };

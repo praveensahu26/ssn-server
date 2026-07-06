@@ -2,6 +2,7 @@ const Campaign = require('./campaign.model');
 const { CampaignReport } = require('./campaignReport.model');
 const Category = require('./category.model');
 const Comment = require('./comment.model');
+const CommentReaction = require('./commentReaction.model');
 const Donation = require('./donation.model');
 const News = require('./news.model');
 const { Notification } = require('./notification.model');
@@ -15,6 +16,7 @@ module.exports = {
   CampaignReport,
   Category,
   Comment,
+  CommentReaction,
   Donation,
   News,
   Notification,
