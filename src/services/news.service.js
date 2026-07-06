@@ -90,12 +90,12 @@ const attachUserContext = async (posts, user) => {
   const followingSet = new Set(user.following.map((id) => id.toString()));
 
   return posts.map((post) => {
-    const authorId = post.author.id;
+    const authorId = post.author ? post.author.id : null;
     return {
       ...post.toJSON(),
       isLike: likedSet.has(post.id),
-      isFollow: followingSet.has(authorId),
-      isMyPost: authorId === user.id,
+      isFollow: authorId ? followingSet.has(authorId) : false,
+      isMyPost: authorId !== null && authorId === user.id,
     };
   });
 };
