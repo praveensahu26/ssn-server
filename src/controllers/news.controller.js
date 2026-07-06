@@ -86,12 +86,12 @@ const listComments = catchAsync(async (req, res) => {
 });
 
 const likeComment = catchAsync(async (req, res) => {
-  const comment = await newsService.reactToComment(req.user, req.params.commentId, 'like');
+  const comment = await newsService.reactToComment(req.user, req.params.id, req.params.commentId, 'like');
   sendSuccess(res, httpStatus.OK, 'Comment liked successfully', { comment });
 });
 
 const dislikeComment = catchAsync(async (req, res) => {
-  const comment = await newsService.reactToComment(req.user, req.params.commentId, 'dislike');
+  const comment = await newsService.reactToComment(req.user, req.params.id, req.params.commentId, 'dislike');
   sendSuccess(res, httpStatus.OK, 'Comment disliked successfully', { comment });
 });
 const likeReply = catchAsync(async (req, res) => {
@@ -104,7 +104,7 @@ const dislikeReply = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.OK, 'Reply disliked successfully', { reply });
 });
 const deleteComment = catchAsync(async (req, res) => {
-  await newsService.deleteComment(req.user, req.params.commentId);
+  await newsService.deleteComment(req.user, req.params.id, req.params.commentId);
   sendSuccess(res, httpStatus.OK, 'Comment deleted successfully');
 });
 

@@ -288,12 +288,8 @@ const listComments = async (id, query) => {
   return paginate(Comment, { news: id, parentComment: null }, query.page, query.limit, [['author', 'name avatar role']]);
 };
 
-const reactToComment = async (user, commentId, type) => {
-  const comment = await Comment.findById(commentId);
-  if (!comment) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Comment not found');
-  }
-
+const applyReaction = async (user, comment, type) => {
+  const commentId = comment._id;
   const existing = await CommentReaction.findOne({ comment: commentId, user: user.id });
   if (existing && existing.type === type) {
     return comment;
@@ -321,6 +317,13 @@ const reactToComment = async (user, commentId, type) => {
   await comment.save();
   return comment.populate('author', 'name avatar role');
 };
+
+const reactToComment = async (user, newsId, commentId, type) => {
+  await getNewsOr404(newsId);
+  const comment = await getCommentOr404(commentId, newsId);
+  return applyReaction(user, comment, type);
+};
+
 const reactToReply = async (user, newsId, commentId, replyId, type) => {
   await getNewsOr404(newsId);
   await getCommentOr404(commentId, newsId);
@@ -329,13 +332,11 @@ const reactToReply = async (user, newsId, commentId, replyId, type) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Reply not found');
   }
 
-  return reactToComment(user, replyId, type);
+  return applyReaction(user, reply, type);
 };
-const deleteComment = async (user, commentId) => {
-  const comment = await Comment.findById(commentId);
-  if (!comment) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Comment not found');
-  }
+const deleteComment = async (user, newsId, commentId) => {
+  await getNewsOr404(newsId);
+  const comment = await getCommentOr404(commentId, newsId);
   const isOwner = comment.author.toString() === user.id;
   if (!isOwner && !user.isOperator()) {
     throw new ApiError(httpStatus.FORBIDDEN, 'You can only delete your own comments');
