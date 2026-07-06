@@ -27,7 +27,7 @@ router.post(
   validate(newsValidation.createNews),
   newsController.createNews,
 );
-router.get('/', optionalAuthenticate, validate(newsValidation.listNews), newsController.listNews);
+router.get('/', authenticate, validate(newsValidation.listNews), newsController.listNews);
 router.get(
   '/categories/:categoryId',
   authenticate,
