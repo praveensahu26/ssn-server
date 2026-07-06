@@ -75,6 +75,24 @@ const listComments = catchAsync(async (req, res) => {
   });
 });
 
+const likeComment = catchAsync(async (req, res) => {
+  const comment = await newsService.reactToComment(req.user, req.params.commentId, 'like');
+  sendSuccess(res, httpStatus.OK, 'Comment liked successfully', { comment });
+});
+
+const dislikeComment = catchAsync(async (req, res) => {
+  const comment = await newsService.reactToComment(req.user, req.params.commentId, 'dislike');
+  sendSuccess(res, httpStatus.OK, 'Comment disliked successfully', { comment });
+});
+const likeReply = catchAsync(async (req, res) => {
+  const reply = await newsService.reactToReply(req.user, req.params.id, req.params.commentId, req.params.replyId, 'like');
+  sendSuccess(res, httpStatus.OK, 'Reply liked successfully', { reply });
+});
+
+const dislikeReply = catchAsync(async (req, res) => {
+  const reply = await newsService.reactToReply(req.user, req.params.id, req.params.commentId, req.params.replyId, 'dislike');
+  sendSuccess(res, httpStatus.OK, 'Reply disliked successfully', { reply });
+});
 const deleteComment = catchAsync(async (req, res) => {
   await newsService.deleteComment(req.user, req.params.commentId);
   sendSuccess(res, httpStatus.OK, 'Comment deleted successfully');
@@ -97,19 +115,29 @@ const listReplies = catchAsync(async (req, res) => {
   });
 });
 
+const shareNews = catchAsync(async (req, res) => {
+  const news = await newsService.incrementShareCount(req.params.id);
+  sendSuccess(res, httpStatus.OK, 'Share recorded successfully', { news });
+});
+
 module.exports = {
   addComment,
   addReply,
   createNews,
   deleteComment,
   deleteNews,
+  dislikeComment,
   dislikeNews,
+  dislikeReply,
   getNews,
+  likeComment,
   likeNews,
+  likeReply,
   listComments,
   listNews,
   listNewsByCategory,
   listReactions,
   listReplies,
   removeReaction,
+  shareNews,
 };

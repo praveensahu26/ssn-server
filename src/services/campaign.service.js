@@ -86,8 +86,21 @@ const getCampaignById = async (user, id) => {
   return attachProgress(populated);
 };
 
+const incrementShareCount = async (id) => {
+  const campaign = await Campaign.findByIdAndUpdate(
+    id,
+    { $inc: { sharesCount: 1 } },
+    { new: true }
+  ).populate('organizer', 'name avatar role').populate('category', 'name');
+  if (!campaign) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Campaign not found');
+  }
+  return attachProgress(campaign);
+};
+
 module.exports = {
   createCampaign,
   getCampaignById,
   listCampaigns,
+  incrementShareCount,
 };

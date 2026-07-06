@@ -17,6 +17,7 @@ router.post(
 );
 router.get('/', authenticate, validate(campaignValidation.listCampaigns), campaignController.listCampaigns);
 router.get('/:id', optionalAuthenticate, validate(campaignValidation.campaignId), campaignController.getCampaign);
+router.post('/:id/share', authenticate, validate(campaignValidation.campaignId), campaignController.shareCampaign);
 router.post('/:id/donate', authenticate, validate(campaignValidation.donate), campaignController.donate);
 router.get('/:id/support', validate(campaignValidation.listSupportFeed), campaignController.listSupportFeed);
 
