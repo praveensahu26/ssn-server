@@ -4,6 +4,7 @@ const adminAccountRoute = require('./adminAccount.route');
 const adminAuthRoute = require('./auth.route');
 const adminCampaignRoute = require('./adminCampaign.route');
 const adminCategoryRoute = require('./adminCategory.route');
+const adminNewsRoute = require('./adminNews.route');
 const adminNotificationRoute = require('./adminNotification.route');
 const adminReporterRoute = require('./adminReporter.route');
 const campaignRoute = require('./campaign.route');
@@ -43,6 +44,7 @@ router.use('/admin/auth', adminAuthRoute);
 router.use('/admin/campaigns', adminCampaignRoute);
 router.use('/admin/categories', adminCategoryRoute);
 router.use('/admin/dashboard', dashboardRoute);
+router.use('/admin/news', adminNewsRoute);
 router.use('/admin/notifications', adminNotificationRoute);
 router.use('/admin/reporters', adminReporterRoute);
 

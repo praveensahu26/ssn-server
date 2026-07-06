@@ -1,6 +1,7 @@
 const adminAccountController = require('./adminAccount.controller');
 const adminCampaignController = require('./adminCampaign.controller');
 const adminCategoryController = require('./adminCategory.controller');
+const adminNewsController = require('./adminNews.controller');
 const adminReporterController = require('./adminReporter.controller');
 const authController = require('./auth.controller');
 const campaignController = require('./campaign.controller');
@@ -17,6 +18,7 @@ module.exports = {
   adminAccountController,
   adminCampaignController,
   adminCategoryController,
+  adminNewsController,
   adminReporterController,
   authController,
   campaignController,
