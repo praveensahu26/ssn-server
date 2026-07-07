@@ -93,6 +93,10 @@ const campaignSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
+    sharesCount: {
+      type: Number,
+      default: 0,
+    },
     approvedAt: {
       type: Date,
       default: null,

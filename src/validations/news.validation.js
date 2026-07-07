@@ -47,6 +47,13 @@ const commentId = {
   }),
 };
 
+const commentReaction = {
+  params: Joi.object().keys({
+    id: objectId.required(),
+    commentId: objectId.required(),
+  }),
+};
+
 const addComment = {
   params: Joi.object().keys({
     id: objectId.required(),
@@ -87,6 +94,13 @@ const addReply = {
   }),
 };
 
+const replyReaction = {
+  params: Joi.object().keys({
+    id: objectId.required(),
+    commentId: objectId.required(),
+    replyId: objectId.required(),
+  }),
+};
 const listReplies = {
   params: Joi.object().keys({
     id: objectId.required(),
@@ -122,6 +136,7 @@ module.exports = {
   addComment,
   addReply,
   commentId,
+  commentReaction,
   createNews,
   listComments,
   listNews,
@@ -129,6 +144,7 @@ module.exports = {
   listReactions,
   listReplies,
   newsId,
+  replyReaction,
   reportNews,
   updateNews,
 };

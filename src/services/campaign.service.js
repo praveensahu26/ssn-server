@@ -60,6 +60,8 @@ const buildCategoriesFilter = (query) => {
 
 const buildDiscoverFilter = (user, query) => {
   const filter = { status: { $in: ['active', 'completed'] } };
+const buildDiscoverFilter = (query) => {
+  const filter = {};
   const categoriesFilter = buildCategoriesFilter(query);
   if (categoriesFilter) filter.categories = categoriesFilter;
   if (user) filter.notInterestedBy = { $ne: user.id };
@@ -95,6 +97,18 @@ const getCampaignById = async (user, id) => {
   await Campaign.findByIdAndUpdate(id, { $inc: { viewsCount: 1 } });
   const populated = await Campaign.findById(id).populate('organizer', 'name avatar role').populate('categories', 'name');
   return attachProgress(populated);
+};
+
+const incrementShareCount = async (id) => {
+  const campaign = await Campaign.findByIdAndUpdate(
+    id,
+    { $inc: { sharesCount: 1 } },
+    { new: true }
+  ).populate('organizer', 'name avatar role').populate('categories', 'name');
+  if (!campaign) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Campaign not found');
+  }
+  return attachProgress(campaign);
 };
 
 const requireOwner = (campaign, user) => {
@@ -215,6 +229,7 @@ module.exports = {
   editCampaign,
   getCampaignById,
   listCampaigns,
+  incrementShareCount,
   redriveCampaign,
   reportCampaign,
   toggleMute,
