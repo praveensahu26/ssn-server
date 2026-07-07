@@ -57,7 +57,16 @@ const verifyToken = async (token, type) => {
   try {
     payload = jwt.verify(token, config.jwt.secret);
   } catch (err) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired token');
+    if (err.name === 'TokenExpiredError') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Session expired. Please log in again.');
+    }
+    if (err.name === 'JsonWebTokenError') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid authentication token');
+    }
+    if (err.name === 'NotBeforeError') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Token not yet valid');
+    }
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication failed');
   }
 
   if (payload.type !== type) {
