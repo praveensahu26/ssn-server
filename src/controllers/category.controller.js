@@ -19,6 +19,11 @@ const unfollowCategory = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.OK, 'Category unfollowed successfully', { user });
 });
 
+const getAssignedCategories = catchAsync(async (req, res) => {
+  const categories = await categoryService.getAssignedCategories(req.user.id);
+  sendSuccess(res, httpStatus.OK, 'Assigned categories fetched successfully', { categories });
+});
+
 const assignCategories = catchAsync(async (req, res) => {
   const user = await categoryService.assignCategoriesToUser(req.user.id, req.body.categoryIds);
   const tokens = await tokenService.generateAuthTokens(user);
@@ -33,6 +38,7 @@ const assignCategories = catchAsync(async (req, res) => {
 module.exports = {
   assignCategories,
   followCategory,
+  getAssignedCategories,
   listCategories,
   unfollowCategory,
 };
