@@ -91,12 +91,12 @@ const deleteCoverPhoto = async (user) => {
 
 const getMyPosts = async (userId, query) => {
   const filter = { author: userId, status: { $ne: 'deleted' } };
-  return paginate(News, filter, query.page, query.limit, [['category', 'name']]);
+  return paginate(News, filter, query.page, query.limit, [['categories', 'name']]);
 };
 
 const getUserPosts = async (targetId, query) => {
   await getUserOr404(targetId);
-  return paginate(News, { author: targetId, status: 'public' }, query.page, query.limit, [['category', 'name']]);
+  return paginate(News, { author: targetId, status: 'public' }, query.page, query.limit, [['categories', 'name']]);
 };
 
 const getSavedPosts = async (user, query) => {
@@ -106,7 +106,7 @@ const getSavedPosts = async (user, query) => {
   const ids = [...user.savedPosts].reverse().slice((page - 1) * limit, page * limit);
   const posts = await News.find({ _id: { $in: ids }, status: { $ne: 'deleted' } })
     .populate('author', 'name avatar role')
-    .populate('category', 'name');
+    .populate('categories', 'name');
   return { results: posts, page, limit, total, totalPages: Math.ceil(total / limit) || 1 };
 };
 
