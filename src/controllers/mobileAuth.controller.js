@@ -5,11 +5,28 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/response');
 
-const buildOnboardingFlags = (user) => ({
-  isProfilePending: !user.mobile || !user.gender,
-  isTopicsSelectionPending: user.followedCategories.length === 0,
-  isAgencyReporter: user.isAgencyReporter,
-});
+const buildOnboardingFlags = (user) => {
+  const flags = {
+    isProfilePending: !user.mobile || !user.gender,
+    isTopicsSelectionPending: user.followedCategories.length === 0,
+    isAgencyReporter: user.isAgencyReporter,
+  };
+
+  // Include verification object for agency reporters
+  if (user.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = user.reporterProfile?.approvalStatus
+      ? statusMap[user.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    flags.verification = { status: verificationStatus };
+  }
+
+  return flags;
+};
 
 const register = catchAsync(async (req, res) => {
   const user = await mobileAuthService.register(req.user, req.body);
@@ -88,16 +105,65 @@ const resetPassword = catchAsync(async (req, res) => {
 
 const applyAsReporter = catchAsync(async (req, res) => {
   const user = await mobileAuthService.applyAsReporter(req.user, req.body.documents);
-  sendSuccess(res, httpStatus.OK, 'Reporter application submitted. It is pending admin approval.', { user });
+  
+  const responseData = { user };
+
+  // Include verification object for agency reporters
+  if (user.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = user.reporterProfile?.approvalStatus
+      ? statusMap[user.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    responseData.verification = { status: verificationStatus };
+  }
+
+  sendSuccess(res, httpStatus.OK, 'Reporter application submitted. It is pending admin approval.', responseData);
 });
 
 const getProfile = catchAsync(async (req, res) => {
-  sendSuccess(res, httpStatus.OK, 'Profile fetched successfully', { user: req.user });
+  const user = req.user;
+  
+  const responseData = { user };
+
+  // Include verification object for agency reporters
+  if (user.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = user.reporterProfile?.approvalStatus
+      ? statusMap[user.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    responseData.verification = { status: verificationStatus };
+  }
+
+  sendSuccess(res, httpStatus.OK, 'Profile fetched successfully', responseData);
 });
 
 const updateProfile = catchAsync(async (req, res) => {
   const user = await mobileAuthService.updateProfile(req.user, req.body);
-  sendSuccess(res, httpStatus.OK, 'Profile updated successfully', { user });
+  
+  const responseData = { user };
+
+  // Include verification object for agency reporters
+  if (user.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = user.reporterProfile?.approvalStatus
+      ? statusMap[user.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    responseData.verification = { status: verificationStatus };
+  }
+
+  sendSuccess(res, httpStatus.OK, 'Profile updated successfully', responseData);
 });
 
 module.exports = {

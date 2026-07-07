@@ -11,7 +11,22 @@ const login = catchAsync(async (req, res) => {
   const tokens = await tokenService.generateAuthTokens(user);
   const message = user.isSuperAdmin ? 'Super admin logged in successfully' : 'Admin logged in successfully';
 
-  sendSuccess(res, httpStatus.OK, message, { user, tokens });
+  const responseData = { user, tokens };
+
+  // Include verification object for agency reporters
+  if (user.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = user.reporterProfile?.approvalStatus
+      ? statusMap[user.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    responseData.verification = { status: verificationStatus };
+  }
+
+  sendSuccess(res, httpStatus.OK, message, responseData);
 });
 
 const forgotPassword = catchAsync(async (req, res) => {
