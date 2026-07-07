@@ -81,13 +81,14 @@ const buildUserFilter = (user, query) => {
 
 const attachUserContext = async (posts, user) => {
   if (!user) {
-    return posts.map((post) => ({ ...post.toJSON(), isLike: false, isFollow: false, isMyPost: false }));
+    return posts.map((post) => ({ ...post.toJSON(), isLike: false, isFollow: false, isMyPost: false, isFavourite: false }));
   }
 
   const postIds = posts.map((post) => post.id);
   const likedReactions = await Reaction.find({ news: { $in: postIds }, user: user.id, type: 'like' }).select('news');
   const likedSet = new Set(likedReactions.map((r) => r.news.toString()));
   const followingSet = new Set(user.following.map((id) => id.toString()));
+  const savedPostsSet = new Set(user.savedPosts.map((id) => id.toString()));
 
   return posts.map((post) => {
     const authorId = post.author ? post.author.id : null;
@@ -96,6 +97,7 @@ const attachUserContext = async (posts, user) => {
       isLike: likedSet.has(post.id),
       isFollow: authorId ? followingSet.has(authorId) : false,
       isMyPost: authorId !== null && authorId === user.id,
+      isFavourite: savedPostsSet.has(post.id),
     };
   });
 };
@@ -147,10 +149,11 @@ const listNewsByCategory = async (user, categoryId, query) => {
   const filter = { categories: categoryId };
   filter.status = isOperator ? query.status || { $ne: 'deleted' } : 'public';
 
-  return paginate(News, filter, query.page, query.limit, [
+  const result = await paginate(News, filter, query.page, query.limit, [
     ['author', 'name avatar role'],
     ['categories', 'name'],
   ]);
+  return { ...result, results: await attachUserContext(result.results, user) };
 };
 
 const getNewsById = async (user, id) => {
@@ -279,6 +282,7 @@ const listReactions = async (user, id, query) => {
     results: result.results.map((reaction) => ({
       ...reaction.toJSON(),
       isFollow: followingSet.has(reaction.user.id),
+      isMyLike: reaction.user.id === user.id,
     })),
   };
 };
