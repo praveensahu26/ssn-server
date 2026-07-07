@@ -316,7 +316,7 @@ const formatCampaign = (campaign) => ({
   id: campaign.id,
   mediaUrl: campaign.attachments?.[0]?.url || null,
   viewCount: String(campaign.viewsCount || 0),
-  categories: campaign.category?.name || null,
+  categories: campaign.categories?.map((c) => c.name).filter(Boolean) || [],
   status: campaign.status,
 });
 
@@ -329,7 +329,7 @@ const listCampaigns = async (id, query) => {
 
   const [campaigns, total] = await Promise.all([
     Campaign.find(filter)
-      .populate('category', 'name')
+      .populate('categories', 'name')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit),
