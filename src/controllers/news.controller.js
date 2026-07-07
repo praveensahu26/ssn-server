@@ -75,7 +75,7 @@ const addComment = catchAsync(async (req, res) => {
 });
 
 const listComments = catchAsync(async (req, res) => {
-  const { results, page, limit, total, totalPages } = await newsService.listComments(req.params.id, req.query);
+  const { results, page, limit, total, totalPages } = await newsService.listComments(req.user, req.params.id, req.query);
   sendSuccess(
     res,
     httpStatus.OK,
@@ -115,6 +115,7 @@ const addReply = catchAsync(async (req, res) => {
 
 const listReplies = catchAsync(async (req, res) => {
   const { results, page, limit, total, totalPages } = await newsService.listReplies(
+    req.user,
     req.params.id,
     req.params.commentId,
     req.query,
