@@ -62,6 +62,14 @@ const toggleMute = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.OK, message, result);
 });
 
+const toggleNotInterested = catchAsync(async (req, res) => {
+  const result = await campaignService.toggleNotInterested(req.user, req.params.id);
+  const message = result.notInterested
+    ? 'Campaign marked as not interested'
+    : 'Campaign removed from not interested';
+  sendSuccess(res, httpStatus.OK, message, result);
+});
+
 const deleteCampaign = catchAsync(async (req, res) => {
   await campaignService.deleteCampaign(req.user, req.params.id);
   sendSuccess(res, httpStatus.OK, 'Campaign deleted successfully');
@@ -84,4 +92,5 @@ module.exports = {
   redriveCampaign,
   reportCampaign,
   toggleMute,
+  toggleNotInterested,
 };

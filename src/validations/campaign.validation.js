@@ -91,18 +91,7 @@ const editCampaign = {
 const reportCampaign = {
   params: Joi.object().keys({ id: objectId.required() }),
   body: Joi.object().keys({
-    reason: Joi.string()
-      .valid(
-        'inappropriate_content',
-        'misinformation',
-        'hate_speech',
-        'defamation',
-        'copyright_violation',
-        'misleading_headline',
-        'irrelevant_content',
-        'others',
-      )
-      .required(),
+    reason: Joi.string().required(),
     description: Joi.string().trim().max(500).allow(null, ''),
   }),
 };

@@ -58,10 +58,11 @@ const buildCategoriesFilter = (query) => {
   return { $in: Array.isArray(categories) ? categories : [categories] };
 };
 
-const buildDiscoverFilter = (query) => {
+const buildDiscoverFilter = (user, query) => {
   const filter = { status: { $in: ['active', 'completed'] } };
   const categoriesFilter = buildCategoriesFilter(query);
   if (categoriesFilter) filter.categories = categoriesFilter;
+  if (user) filter.notInterestedBy = { $ne: user.id };
   return filter;
 };
 
@@ -74,7 +75,7 @@ const buildMyCampaignsFilter = (user, query) => {
 };
 
 const listCampaigns = async (user, query) => {
-  const filter = query.scope === 'mine' ? buildMyCampaignsFilter(user, query) : buildDiscoverFilter(query);
+  const filter = query.scope === 'mine' ? buildMyCampaignsFilter(user, query) : buildDiscoverFilter(user, query);
   const paginated = await paginate(Campaign, filter, query.page, query.limit, [
     ['organizer', 'name avatar role'],
     ['categories', 'name'],
@@ -167,6 +168,19 @@ const toggleMute = async (user, id) => {
   return { muted: !isMuted };
 };
 
+const toggleNotInterested = async (user, id) => {
+  const campaign = await getCampaignOr404(id);
+  const userId = user.id;
+  const isNotInterested = campaign.notInterestedBy.some((uid) => uid.toString() === userId);
+  if (isNotInterested) {
+    campaign.notInterestedBy = campaign.notInterestedBy.filter((uid) => uid.toString() !== userId);
+  } else {
+    campaign.notInterestedBy.push(userId);
+  }
+  await campaign.save();
+  return { notInterested: !isNotInterested };
+};
+
 const deleteCampaign = async (user, id) => {
   const campaign = await getCampaignOr404(id);
   requireOwner(campaign, user);
@@ -204,4 +218,5 @@ module.exports = {
   redriveCampaign,
   reportCampaign,
   toggleMute,
+  toggleNotInterested,
 };

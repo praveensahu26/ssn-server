@@ -113,9 +113,7 @@ const updateNews = {
 const reportNews = {
   params: Joi.object().keys({ id: objectId.required() }),
   body: Joi.object().keys({
-    reason: Joi.string()
-      .valid('spam', 'misinformation', 'hate_speech', 'violence', 'nudity', 'harassment', 'other')
-      .required(),
+    reason: Joi.string().required(),
     description: Joi.string().trim().max(500).allow(null, ''),
   }),
 };
