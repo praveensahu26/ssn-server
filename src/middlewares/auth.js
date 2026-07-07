@@ -14,7 +14,22 @@ const authenticate = catchAsync(async (req, res, next) => {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');
   }
 
-  const payload = jwt.verify(token, config.jwt.secret);
+  let payload;
+  try {
+    payload = jwt.verify(token, config.jwt.secret);
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Session expired. Please log in again.');
+    }
+    if (error.name === 'JsonWebTokenError') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid authentication token');
+    }
+    if (error.name === 'NotBeforeError') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Token not yet valid');
+    }
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Authentication failed');
+  }
+
   if (payload.type !== 'access') {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token type');
   }

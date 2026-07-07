@@ -22,12 +22,28 @@ const unfollowCategory = catchAsync(async (req, res) => {
 const assignCategories = catchAsync(async (req, res) => {
   const user = await categoryService.assignCategoriesToUser(req.user.id, req.body.categoryIds);
   const tokens = await tokenService.generateAuthTokens(user);
-  sendSuccess(res, httpStatus.OK, 'Topics assigned successfully', {
+
+  const responseData = {
     tokens,
     isProfilePending: !user.mobile || !user.gender,
     isTopicsSelectionPending: user.followedCategories.length === 0,
     isAgencyReporter: user.isAgencyReporter,
-  });
+  };
+
+  // Include verification object for agency reporters
+  if (user.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = user.reporterProfile?.approvalStatus
+      ? statusMap[user.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    responseData.verification = { status: verificationStatus };
+  }
+
+  sendSuccess(res, httpStatus.OK, 'Topics assigned successfully', responseData);
 });
 
 module.exports = {
