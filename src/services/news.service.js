@@ -100,6 +100,21 @@ const attachUserContext = async (posts, user) => {
   });
 };
 
+const attachCommentUserContext = async (comments, user) => {
+  if (!user) {
+    return comments.map((comment) => ({ ...comment.toJSON(), isLike: false }));
+  }
+
+  const commentIds = comments.map((comment) => comment.id);
+  const likedReactions = await CommentReaction.find({ comment: { $in: commentIds }, user: user.id, type: 'like' }).select('comment');
+  const likedSet = new Set(likedReactions.map((r) => r.comment.toString()));
+
+  return comments.map((comment) => ({
+    ...comment.toJSON(),
+    isLike: likedSet.has(comment.id),
+  }));
+};
+
 const listNews = async (user, query) => {
   let filter;
   if (!user) {
@@ -283,9 +298,10 @@ const addComment = async (user, id, text) => {
   return comment.populate('author', 'name avatar role');
 };
 
-const listComments = async (id, query) => {
+const listComments = async (user, id, query) => {
   await getNewsOr404(id);
-  return paginate(Comment, { news: id, parentComment: null }, query.page, query.limit, [['author', 'name avatar role']]);
+  const result = await paginate(Comment, { news: id, parentComment: null }, query.page, query.limit, [['author', 'name avatar role']]);
+  return { ...result, results: await attachCommentUserContext(result.results, user) };
 };
 
 const applyReaction = async (user, comment, type) => {
@@ -358,12 +374,13 @@ const addReply = async (user, newsId, commentId, text) => {
   return reply.populate('author', 'name avatar role');
 };
 
-const listReplies = async (newsId, commentId, query) => {
+const listReplies = async (user, newsId, commentId, query) => {
   await getNewsOr404(newsId);
   await getCommentOr404(commentId, newsId);
-  return paginate(Comment, { parentComment: commentId }, query.page, query.limit, [['author', 'name avatar role']], {
+  const result = await paginate(Comment, { parentComment: commentId }, query.page, query.limit, [['author', 'name avatar role']], {
     createdAt: 1,
   });
+  return { ...result, results: await attachCommentUserContext(result.results, user) };
 };
 
 const incrementShareCount = async (newsId) => {
