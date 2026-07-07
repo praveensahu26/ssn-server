@@ -198,6 +198,14 @@ const userSchema = mongoose.Schema(
       enum: ['active', 'inactive', 'suspended', 'blocked'],
       default: 'active',
     },
+    statusReasonTitle: {
+      type: String,
+      default: null,
+    },
+    statusReasonDescription: {
+      type: String,
+      default: null,
+    },
     otp: {
       type: String,
       default: null,
