@@ -6,7 +6,7 @@ const ApiError = require('../utils/ApiError');
 const DEFAULT_COUNTRY = 'USA';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PROFILE_SELECT =
-  'name email mobile avatar coverPhoto bio liveUrl location role status reporterProfile followers following createdAt updatedAt isDeleted gender';
+  'name email mobile avatar coverPhoto bio liveUrl location role status statusReasonTitle statusReasonDescription reporterProfile followers following createdAt updatedAt isDeleted gender';
 const CONNECTION_SELECT = 'name email avatar role';
 
 const slugify = (value = '') =>
@@ -68,7 +68,8 @@ const formatAccountBase = (user, extras = {}) => ({
   role: user.role,
   status: {
     value: user.status || 'active',
-    reason: extras.statusReason || null,
+    reasonTitle: user.statusReasonTitle || null,
+    reasonDescription: user.statusReasonDescription || null,
   },
   reporterProfile: user.reporterProfile || undefined,
   createdAt: user.createdAt,
@@ -342,12 +343,18 @@ const listCampaigns = async (id, query) => {
 const updateStatus = async (id, status, payload = {}) => {
   const user = await getAccountOr404(id);
   user.status = status;
+  user.statusReasonTitle = payload.reasons?.[0] || null;
+  user.statusReasonDescription = payload.description || null;
   await user.save();
 
-  return formatAccountBase(user, {
+  // Fetch the user again to ensure we get the updated fields
+  const updatedUser = await getAccountOr404(id);
+
+  return formatAccountBase(updatedUser, {
     status: {
-      value: user.status,
-      reason: payload.description || payload.reasons?.[0] || null,
+      value: updatedUser.status,
+      reasonTitle: updatedUser.statusReasonTitle,
+      reasonDescription: updatedUser.statusReasonDescription,
     },
   });
 };
