@@ -6,7 +6,23 @@ const { sendSuccess } = require('../utils/response');
 
 const getOwnProfile = catchAsync(async (req, res) => {
   const profile = await profileService.getOwnProfile(req.user.id);
-  sendSuccess(res, httpStatus.OK, 'Profile fetched successfully', { user: profile });
+  
+  const responseData = { user: profile };
+
+  // Include verification object for agency reporters
+  if (profile.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = profile.reporterProfile?.approvalStatus
+      ? statusMap[profile.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    responseData.verification = { status: verificationStatus };
+  }
+
+  sendSuccess(res, httpStatus.OK, 'Profile fetched successfully', responseData);
 });
 
 const getUserProfile = catchAsync(async (req, res) => {
@@ -16,7 +32,23 @@ const getUserProfile = catchAsync(async (req, res) => {
 
 const updateProfile = catchAsync(async (req, res) => {
   const user = await profileService.updateProfile(req.user, req.body);
-  sendSuccess(res, httpStatus.OK, 'Profile updated successfully', { user });
+  
+  const responseData = { user };
+
+  // Include verification object for agency reporters
+  if (user.isAgencyReporter) {
+    const statusMap = {
+      pending: 'PENDING',
+      approved: 'VERIFIED',
+      rejected: 'REJECTED',
+    };
+    const verificationStatus = user.reporterProfile?.approvalStatus
+      ? statusMap[user.reporterProfile.approvalStatus] || 'PENDING'
+      : 'PENDING';
+    responseData.verification = { status: verificationStatus };
+  }
+
+  sendSuccess(res, httpStatus.OK, 'Profile updated successfully', responseData);
 });
 
 const uploadAvatar = catchAsync(async (req, res) => {
