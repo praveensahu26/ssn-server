@@ -5,6 +5,16 @@ const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
 const notificationService = require('./notification.service');
 
+const slugify = (value = '') =>
+  value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const toUsername = (user) => slugify(user.name || user.email?.split('@')[0] || user.id);
+
 const getNewsOr404 = async (id) => {
   const news = await News.findById(id);
   if (!news) {
@@ -165,6 +175,8 @@ const getNewsById = async (user, id) => {
   }
   const populated = await News.findById(id).populate('author', 'name avatar role').populate('categories', 'name');
   const [result] = await attachUserContext([populated], user);
+  // Add shareCount to the response
+  result.shareCount = result.sharesCount || 0;
   return result;
 };
 
@@ -275,12 +287,16 @@ const listReactions = async (user, id, query) => {
   await getNewsOr404(id);
   const filter = { news: id };
   if (query.type) filter.type = query.type;
-  const result = await paginate(Reaction, filter, query.page, query.limit, [['user', 'name avatar role']]);
+  const result = await paginate(Reaction, filter, query.page, query.limit, [['user', 'name avatar']]);
   const followingSet = new Set(user.following.map((fid) => fid.toString()));
   return {
     ...result,
     results: result.results.map((reaction) => ({
       ...reaction.toJSON(),
+      user: {
+        ...reaction.user.toJSON(),
+        username: toUsername(reaction.user),
+      },
       isFollow: followingSet.has(reaction.user.id),
       isMyLike: reaction.user.id === user.id,
     })),
@@ -304,8 +320,28 @@ const addComment = async (user, id, text) => {
 
 const listComments = async (user, id, query) => {
   await getNewsOr404(id);
-  const result = await paginate(Comment, { news: id, parentComment: null }, query.page, query.limit, [['author', 'name avatar role']]);
-  return { ...result, results: await attachCommentUserContext(result.results, user) };
+  const result = await paginate(Comment, { news: id, parentComment: null }, query.page, query.limit, [['author', 'name avatar']]);
+  const commentsWithUserContext = await attachCommentUserContext(result.results, user);
+
+  // Add username and like count to each comment
+  const commentsWithExtraData = await Promise.all(
+    commentsWithUserContext.map(async (comment) => {
+      const commentReactions = await CommentReaction.find({ comment: comment._id });
+      const likeCount = commentReactions.filter((r) => r.type === 'like').length;
+
+      return {
+        ...comment,
+        author: {
+          ...comment.author,
+          username: toUsername(comment.author),
+        },
+        likesCount: likeCount,
+        commentLikeCount: likeCount, // Frontend expects this field name
+      };
+    })
+  );
+
+  return { ...result, results: commentsWithExtraData };
 };
 
 const applyReaction = async (user, comment, type) => {
