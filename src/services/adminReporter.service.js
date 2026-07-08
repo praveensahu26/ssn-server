@@ -19,8 +19,8 @@ const listReporters = async (query) => {
 const approveReporter = async (id) => {
   const user = await User.findById(id);
   if (!user) throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
-  if (user.reporterProfile.approvalStatus !== 'pending') {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Reporter application is not pending');
+  if (!['pending', 'rejected'].includes(user.reporterProfile.approvalStatus)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Reporter application is already approved');
   }
 
   user.set({
@@ -35,11 +35,12 @@ const approveReporter = async (id) => {
 const rejectReporter = async (id, reason) => {
   const user = await User.findById(id);
   if (!user) throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
-  if (user.reporterProfile.approvalStatus !== 'pending') {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Reporter application is not pending');
+  if (!['pending', 'approved'].includes(user.reporterProfile.approvalStatus)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Reporter application is already rejected');
   }
 
   user.set({
+    role: 'reporter_pending',
     'reporterProfile.approvalStatus': 'rejected',
     'reporterProfile.rejectionReason': reason,
   });

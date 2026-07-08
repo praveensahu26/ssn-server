@@ -22,7 +22,7 @@ jest.mock('multer-s3', () => {
 });
 
 const app = require('../../src/app');
-const { Category, Comment, News, Reaction, User } = require('../../src/models');
+const { Category, Comment, CommentReaction, News, Reaction, User } = require('../../src/models');
 const tokenService = require('../../src/services/token.service');
 const setupTestDB = require('../utils/setupTestDB');
 
@@ -61,7 +61,8 @@ let catA;
 let catB;
 
 beforeEach(async () => {
-  [catA, catB] = await Category.create([{ name: 'Politics' }, { name: 'Sports' }]);
+  const suffix = `${Date.now()}${Math.random()}`;
+  [catA, catB] = await Category.create([{ name: `Politics ${suffix}` }, { name: `Sports ${suffix}` }]);
 });
 
 describe('POST /v1/news (create post)', () => {
@@ -430,10 +431,7 @@ describe('Reactions', () => {
   });
 
   test('GET /:id/reactions rejects invalid type', async () => {
-    await request(app)
-      .get(`/v1/news/${news.id}/reactions?type=love`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(400);
+    await request(app).get(`/v1/news/${news.id}/reactions?type=love`).set('Authorization', `Bearer ${token}`).expect(400);
   });
 });
 
@@ -514,6 +512,70 @@ describe('Comments', () => {
   });
 });
 
+describe('Comment Reactions', () => {
+  let news;
+  let commenter;
+  let token;
+  let comment;
+
+  beforeEach(async () => {
+    const author = await User.create(makeUser());
+    commenter = await User.create(makeUser());
+    token = await tokenFor(commenter);
+    news = await News.create({
+      author: author.id,
+      media: [fakeMedia()],
+      caption: 'a',
+      categories: [catA.id],
+    });
+    comment = await Comment.create({ news: news.id, author: commenter.id, text: 'parent comment' });
+  });
+
+  test('liking a comment increments likesCount and is idempotent', async () => {
+    await request(app).post(`/v1/news/comments/${comment.id}/like`).set('Authorization', `Bearer ${token}`).expect(200);
+    let found = await Comment.findById(comment.id);
+    expect(found.likesCount).toBe(1);
+    expect(found.dislikesCount).toBe(0);
+
+    await request(app).post(`/v1/news/comments/${comment.id}/like`).set('Authorization', `Bearer ${token}`).expect(200);
+    found = await Comment.findById(comment.id);
+    expect(found.likesCount).toBe(1);
+
+    const reactions = await CommentReaction.find({ comment: comment.id, user: commenter.id });
+    expect(reactions).toHaveLength(1);
+  });
+
+  test('switching a comment reaction from like to dislike adjusts both counters', async () => {
+    await request(app).post(`/v1/news/comments/${comment.id}/like`).set('Authorization', `Bearer ${token}`).expect(200);
+    await request(app).post(`/v1/news/comments/${comment.id}/dislike`).set('Authorization', `Bearer ${token}`).expect(200);
+
+    const found = await Comment.findById(comment.id);
+    expect(found.likesCount).toBe(0);
+    expect(found.dislikesCount).toBe(1);
+  });
+
+  test('reply like/dislike endpoints update reply counters', async () => {
+    const reply = await Comment.create({
+      news: news.id,
+      author: commenter.id,
+      text: 'reply body',
+      parentComment: comment.id,
+    });
+
+    await request(app)
+      .post(`/v1/news/${news.id}/comments/${comment.id}/replies/${reply.id}/like`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .post(`/v1/news/${news.id}/comments/${comment.id}/replies/${reply.id}/dislike`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const found = await Comment.findById(reply.id);
+    expect(found.likesCount).toBe(0);
+    expect(found.dislikesCount).toBe(1);
+  });
+});
 describe('Comment Replies', () => {
   let news;
   let commenter;
@@ -551,7 +613,7 @@ describe('Comment Replies', () => {
   });
 
   test('listReplies returns replies in chronological order with pagination', async () => {
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 3; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await request(app)
         .post(`/v1/news/${news.id}/comments/${comment.id}/replies`)

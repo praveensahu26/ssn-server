@@ -80,6 +80,11 @@ const reportCampaign = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.CREATED, 'Campaign reported successfully');
 });
 
+const shareCampaign = catchAsync(async (req, res) => {
+  const campaign = await campaignService.incrementShareCount(req.params.id);
+  sendSuccess(res, httpStatus.OK, 'Share recorded successfully', { campaign });
+});
+
 module.exports = {
   completeCampaign,
   createCampaign,
@@ -89,6 +94,7 @@ module.exports = {
   getCampaign,
   listCampaigns,
   listSupportFeed,
+  shareCampaign,
   redriveCampaign,
   reportCampaign,
   toggleMute,

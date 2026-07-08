@@ -42,8 +42,13 @@ const listCampaigns = (query) =>
   ]);
 
 const getCampaignById = async (id) => {
-  const campaign = await getCampaignOr404(id);
-  return campaign.populate('organizer', 'name avatar role').populate('categories', 'name');
+  const campaign = await Campaign.findById(id)
+    .populate('organizer', 'name avatar role')
+    .populate('categories', 'name');
+  if (!campaign) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Campaign not found');
+  }
+  return campaign;
 };
 
 const sumRaisedAmount = async (filter) => {
@@ -55,18 +60,39 @@ const sumRaisedAmount = async (filter) => {
 };
 
 const getCampaignStats = async () => {
+  const now = new Date();
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [totalCampaigns, activeCampaigns, completedCampaigns, totalRaised, activeRaised, completedRaised, fansThisWeek] =
-    await Promise.all([
-      Campaign.countDocuments({}),
-      Campaign.countDocuments({ status: 'active' }),
-      Campaign.countDocuments({ status: 'completed' }),
-      sumRaisedAmount({}),
-      sumRaisedAmount({ status: 'active' }),
-      sumRaisedAmount({ status: 'completed' }),
-      Donation.distinct('donor', { status: 'succeeded', createdAt: { $gte: sevenDaysAgo } }).then((donors) => donors.length),
-    ]);
+  const [
+    totalCampaigns,
+    activeCampaigns,
+    completedCampaigns,
+    totalRaised,
+    activeRaised,
+    completedRaised,
+    fansThisWeek,
+    newThisWeek,
+    newThisMonth,
+    activeNewThisWeek,
+    activeNewThisMonth,
+    completedNewThisWeek,
+    completedNewThisMonth,
+  ] = await Promise.all([
+    Campaign.countDocuments({}),
+    Campaign.countDocuments({ status: 'active' }),
+    Campaign.countDocuments({ status: 'completed' }),
+    sumRaisedAmount({}),
+    sumRaisedAmount({ status: 'active' }),
+    sumRaisedAmount({ status: 'completed' }),
+    Donation.distinct('donor', { status: 'succeeded', createdAt: { $gte: sevenDaysAgo } }).then((donors) => donors.length),
+    Campaign.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+    Campaign.countDocuments({ createdAt: { $gte: startOfMonth } }),
+    Campaign.countDocuments({ status: 'active', createdAt: { $gte: sevenDaysAgo } }),
+    Campaign.countDocuments({ status: 'active', createdAt: { $gte: startOfMonth } }),
+    Campaign.countDocuments({ status: 'completed', createdAt: { $gte: sevenDaysAgo } }),
+    Campaign.countDocuments({ status: 'completed', createdAt: { $gte: startOfMonth } }),
+  ]);
 
   return {
     totalCampaigns,
@@ -76,6 +102,12 @@ const getCampaignStats = async () => {
     completedCampaigns,
     completedRaised,
     fansThisWeek,
+    newThisWeek,
+    newThisMonth,
+    activeNewThisWeek,
+    activeNewThisMonth,
+    completedNewThisWeek,
+    completedNewThisMonth,
   };
 };
 

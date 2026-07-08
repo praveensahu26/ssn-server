@@ -15,8 +15,9 @@ router.post(
   validate(campaignValidation.createCampaign),
   campaignController.createCampaign,
 );
-router.get('/', authenticate, validate(campaignValidation.listCampaigns), campaignController.listCampaigns);
+router.get('/', optionalAuthenticate, validate(campaignValidation.listCampaigns), campaignController.listCampaigns);
 router.get('/:id', optionalAuthenticate, validate(campaignValidation.campaignId), campaignController.getCampaign);
+router.post('/:id/share', authenticate, validate(campaignValidation.campaignId), campaignController.shareCampaign);
 router.patch('/:id', authenticate, validate(campaignValidation.editCampaign), campaignController.editCampaign);
 router.delete('/:id', authenticate, validate(campaignValidation.campaignId), campaignController.deleteCampaign);
 router.post('/:id/redrive', authenticate, validate(campaignValidation.campaignId), campaignController.redriveCampaign);

@@ -1,12 +1,15 @@
 const express = require('express');
 
+const adminAccountRoute = require('./adminAccount.route');
 const adminAuthRoute = require('./auth.route');
 const adminCampaignRoute = require('./adminCampaign.route');
 const adminCategoryRoute = require('./adminCategory.route');
+const adminNewsRoute = require('./adminNews.route');
 const adminNotificationRoute = require('./adminNotification.route');
 const adminReporterRoute = require('./adminReporter.route');
 const campaignRoute = require('./campaign.route');
 const categoryRoute = require('./category.route');
+const dashboardRoute = require('./dashboard.route');
 const docsRoute = require('./docs.route');
 const mobileAuthRoute = require('./mobileAuth.route');
 const newsRoute = require('./news.route');
@@ -36,9 +39,12 @@ router.use('/campaigns', campaignRoute);
 router.use('/news', newsRoute);
 
 // Web admin panel
+router.use('/admin/accounts', adminAccountRoute);
 router.use('/admin/auth', adminAuthRoute);
 router.use('/admin/campaigns', adminCampaignRoute);
 router.use('/admin/categories', adminCategoryRoute);
+router.use('/admin/dashboard', dashboardRoute);
+router.use('/admin/news', adminNewsRoute);
 router.use('/admin/notifications', adminNotificationRoute);
 router.use('/admin/reporters', adminReporterRoute);
 
