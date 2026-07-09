@@ -290,7 +290,7 @@ const listFollowing = async (id, query) => getConnections(await getAccountOr404(
 
 const formatPost = (post) => ({
   id: post.id,
-  mediaUrl: post.media?.[0]?.url || null,
+  media: post.media || [],
   viewCount: String(post.viewsCount || 0),
   categories: (post.categories || []).map((category) => category.name).filter(Boolean),
 });
@@ -315,7 +315,7 @@ const listPosts = async (id, query) => {
 
 const formatCampaign = (campaign) => ({
   id: campaign.id,
-  mediaUrl: campaign.attachments?.[0]?.url || null,
+  attachments: campaign.attachments || [],
   viewCount: String(campaign.viewsCount || 0),
   categories: campaign.categories?.map((c) => c.name).filter(Boolean) || [],
   status: campaign.status,
