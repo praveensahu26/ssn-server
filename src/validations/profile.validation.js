@@ -67,9 +67,7 @@ const reportProfile = {
     userId: objectId.required(),
   }),
   body: Joi.object().keys({
-    reason: Joi.string()
-      .valid('fake_account', 'impersonation', 'spam', 'harassment', 'hate_speech', 'inappropriate_content', 'others')
-      .required(),
+    reason: Joi.string().trim().required(),
     description: Joi.string().trim().max(500).allow(null, ''),
   }),
 };
