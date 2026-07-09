@@ -230,6 +230,10 @@ const userSchema = mongoose.Schema(
       breakingNews: { type: Boolean, default: true },
       trendingNews: { type: Boolean, default: true },
     },
+    sharesCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

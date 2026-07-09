@@ -35,11 +35,24 @@ const buildAdminFilter = (query) => {
   return filter;
 };
 
+const formatCampaign = (campaign) => ({
+  ...campaign.toObject(),
+  id: campaign._id,
+  mediaUrl: campaign.attachments?.[0]?.url || null,
+  mediaType: campaign.attachments?.[0]?.type || null,
+});
+
 const listCampaigns = (query) =>
   paginate(Campaign, buildAdminFilter(query), query.page, query.limit, [
     ['organizer', 'name avatar role'],
     ['categories', 'name'],
-  ]);
+  ]).then(({ results, page, limit, total, totalPages }) => ({
+    results: results.map(formatCampaign),
+    page,
+    limit,
+    total,
+    totalPages,
+  }));
 
 const getCampaignById = async (id) => {
   const campaign = await Campaign.findById(id)
@@ -48,7 +61,10 @@ const getCampaignById = async (id) => {
   if (!campaign) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Campaign not found');
   }
-  return campaign;
+  const campaignObject = campaign.toObject();
+  campaignObject.id = campaign._id;
+  campaignObject.attachments = campaign.attachments || [];
+  return campaignObject;
 };
 
 const sumRaisedAmount = async (filter) => {

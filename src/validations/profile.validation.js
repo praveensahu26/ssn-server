@@ -62,12 +62,23 @@ const followersList = {
   query: Joi.object().keys(pagination),
 };
 
+const reportProfile = {
+  params: Joi.object().keys({
+    userId: objectId.required(),
+  }),
+  body: Joi.object().keys({
+    reason: Joi.string().trim().required(),
+    description: Joi.string().trim().max(500).allow(null, ''),
+  }),
+};
+
 module.exports = {
   followersList,
   followingList,
   getUserProfile,
   listPosts,
   newsId,
+  reportProfile,
   savedPosts,
   updateProfile,
   userIdParam,

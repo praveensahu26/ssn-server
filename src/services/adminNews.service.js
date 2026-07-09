@@ -13,6 +13,13 @@ const slugify = (value = '') =>
 
 const toUsername = (user) => slugify(user.name || user.email?.split('@')[0] || user.id);
 
+const formatNews = (news) => ({
+  ...news.toObject(),
+  id: news._id,
+  media: news.media || [],
+  viewCount: String(news.viewsCount || 0),
+});
+
 /**
  * List all news posts with optional admin filters
  * @param {Object} query
@@ -35,10 +42,12 @@ const listNews = async (query) => {
     if (query.dateTo) filter.createdAt.$lte = new Date(query.dateTo);
   }
 
-  return paginate(News, filter, query.page, query.limit, [
+  const { results, page, limit, total, totalPages } = await paginate(News, filter, query.page, query.limit, [
     ['author', 'name avatar role'],
     ['categories', 'name'],
   ]);
+
+  return { results: results.map(formatNews), page, limit, total, totalPages };
 };
 
 /**
@@ -134,6 +143,8 @@ const getNewsById = async (id) => {
 
   // Build the response object
   const newsObject = news.toObject();
+  newsObject.id = news._id;
+  newsObject.media = news.media || [];
   newsObject.comments = commentsWithReplies;
   newsObject.likes = formattedReactions.filter((r) => r.type === 'like');
   newsObject.dislikes = formattedReactions.filter((r) => r.type === 'dislike');

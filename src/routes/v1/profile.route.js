@@ -38,5 +38,9 @@ router.get('/:userId', validate(profileValidation.getUserProfile), profileContro
 router.get('/:userId/posts', validate(profileValidation.userIdPosts), profileController.getUserPosts);
 router.post('/:userId/follow', validate(profileValidation.userIdParam), profileController.followUser);
 router.delete('/:userId/follow', validate(profileValidation.userIdParam), profileController.unfollowUser);
+router.post('/:userId/share', validate(profileValidation.userIdParam), profileController.shareProfile);
+router.post('/:userId/report', validate(profileValidation.reportProfile), profileController.reportProfile);
+router.post('/:userId/block', validate(profileValidation.userIdParam), profileController.blockProfile);
+router.delete('/:userId/block', validate(profileValidation.userIdParam), profileController.unblockProfile);
 
 module.exports = router;
