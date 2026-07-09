@@ -23,6 +23,12 @@ router.delete('/:id', authenticate, validate(campaignValidation.campaignId), cam
 router.post('/:id/redrive', authenticate, validate(campaignValidation.campaignId), campaignController.redriveCampaign);
 router.post('/:id/complete', authenticate, validate(campaignValidation.campaignId), campaignController.completeCampaign);
 router.post('/:id/mute', authenticate, validate(campaignValidation.campaignId), campaignController.toggleMute);
+router.post(
+  '/:id/not-interested',
+  authenticate,
+  validate(campaignValidation.campaignId),
+  campaignController.toggleNotInterested,
+);
 router.post('/:id/report', authenticate, validate(campaignValidation.reportCampaign), campaignController.reportCampaign);
 router.post('/:id/donate', authenticate, validate(campaignValidation.donate), campaignController.donate);
 router.get('/:id/support', validate(campaignValidation.listSupportFeed), campaignController.listSupportFeed);
