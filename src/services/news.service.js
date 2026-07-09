@@ -173,6 +173,7 @@ const getNewsById = async (user, id) => {
   if (!isOperator && !isOwner && news.status !== 'public') {
     throw new ApiError(httpStatus.NOT_FOUND, 'Post not found');
   }
+  await News.findByIdAndUpdate(id, { $inc: { viewsCount: 1 } });
   const populated = await News.findById(id).populate('author', 'name avatar role').populate('categories', 'name');
   const [result] = await attachUserContext([populated], user);
   // Add shareCount to the response

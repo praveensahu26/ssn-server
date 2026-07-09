@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 
-const { News, User } = require('../models');
+const { News, ProfileReport, User } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paginate = require('../utils/paginate');
 const { deleteS3Object } = require('./s3.service');
@@ -183,7 +183,50 @@ const removeFollower = async (user, targetId) => {
   }
 };
 
+const shareProfile = async (targetId) => {
+  const target = await User.findByIdAndUpdate(targetId, { $inc: { sharesCount: 1 } }, { new: true });
+  if (!target || target.isDeleted) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+  return { sharesCount: target.sharesCount };
+};
+
+const reportProfile = async (user, targetId, { reason, description }) => {
+  if (user.id === targetId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'You cannot report your own profile');
+  }
+  await getUserOr404(targetId);
+
+  try {
+    await ProfileReport.create({ reporter: user.id, reportedUser: targetId, reason, description: description || null });
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new ApiError(httpStatus.CONFLICT, 'You have already reported this profile');
+    }
+    throw err;
+  }
+};
+
+const blockProfile = async (user, targetId) => {
+  if (user.id === targetId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'You cannot block yourself');
+  }
+  await getUserOr404(targetId);
+
+  const alreadyBlocked = user.blockedUsers.some((id) => id.toString() === targetId);
+  if (!alreadyBlocked) {
+    user.blockedUsers.push(targetId);
+    await user.save();
+  }
+};
+
+const unblockProfile = async (user, targetId) => {
+  user.set({ blockedUsers: user.blockedUsers.filter((id) => id.toString() !== targetId) });
+  await user.save();
+};
+
 module.exports = {
+  blockProfile,
   deleteAvatar,
   deleteCoverPhoto,
   followUser,
@@ -195,7 +238,10 @@ module.exports = {
   getUserPosts,
   getUserProfile,
   removeFollower,
+  reportProfile,
   savePost,
+  shareProfile,
+  unblockProfile,
   unfollowUser,
   unsavePost,
   updateProfile,
