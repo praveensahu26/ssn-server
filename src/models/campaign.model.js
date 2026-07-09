@@ -111,6 +111,12 @@ const campaignSchema = mongoose.Schema(
         ref: 'User',
       },
     ],
+    notInterestedBy: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true,

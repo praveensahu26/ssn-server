@@ -58,6 +58,14 @@ const unfollowCategory = async (user, categoryId) => {
   return User.findById(user.id);
 };
 
+const getAssignedCategories = async (userId) => {
+  const user = await User.findById(userId).populate('followedCategories', 'name description');
+  if (!user || user.isDeleted) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+  return user.followedCategories;
+};
+
 const assignCategoriesToUser = async (userId, categoryIds) => {
   const user = await User.findById(userId);
   if (!user || user.isDeleted) {
@@ -81,6 +89,7 @@ module.exports = {
   createCategory,
   deleteCategory,
   followCategory,
+  getAssignedCategories,
   getCategoryById,
   listCategories,
   unfollowCategory,

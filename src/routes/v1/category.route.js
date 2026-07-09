@@ -10,6 +10,7 @@ const router = express.Router();
 router.get('/', categoryController.listCategories);
 router.post('/:id/follow', authenticate, validate(categoryValidation.categoryId), categoryController.followCategory);
 router.delete('/:id/follow', authenticate, validate(categoryValidation.categoryId), categoryController.unfollowCategory);
+router.get('/assign', authenticate, categoryController.getAssignedCategories);
 router.post('/assign', authenticate, validate(categoryValidation.assignCategories), categoryController.assignCategories);
 router.put('/assign', authenticate, validate(categoryValidation.assignCategories), categoryController.assignCategories);
 
