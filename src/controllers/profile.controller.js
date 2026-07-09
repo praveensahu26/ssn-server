@@ -139,7 +139,28 @@ const removeFollower = catchAsync(async (req, res) => {
   sendSuccess(res, httpStatus.OK, 'Follower removed successfully');
 });
 
+const shareProfile = catchAsync(async (req, res) => {
+  const result = await profileService.shareProfile(req.params.userId);
+  sendSuccess(res, httpStatus.OK, 'Share recorded successfully', result);
+});
+
+const reportProfile = catchAsync(async (req, res) => {
+  await profileService.reportProfile(req.user, req.params.userId, req.body);
+  sendSuccess(res, httpStatus.OK, 'Profile reported successfully');
+});
+
+const blockProfile = catchAsync(async (req, res) => {
+  await profileService.blockProfile(req.user, req.params.userId);
+  sendSuccess(res, httpStatus.OK, 'User blocked successfully');
+});
+
+const unblockProfile = catchAsync(async (req, res) => {
+  await profileService.unblockProfile(req.user, req.params.userId);
+  sendSuccess(res, httpStatus.OK, 'User unblocked successfully');
+});
+
 module.exports = {
+  blockProfile,
   deleteAvatar,
   deleteCoverPhoto,
   followUser,
@@ -151,7 +172,10 @@ module.exports = {
   getUserPosts,
   getUserProfile,
   removeFollower,
+  reportProfile,
   savePost,
+  shareProfile,
+  unblockProfile,
   unfollowUser,
   unsavePost,
   updateProfile,

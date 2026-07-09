@@ -6,6 +6,7 @@ const CommentReaction = require('./commentReaction.model');
 const Donation = require('./donation.model');
 const News = require('./news.model');
 const { Notification } = require('./notification.model');
+const { ProfileReport } = require('./profileReport.model');
 const Reaction = require('./reaction.model');
 const { Report } = require('./report.model');
 const Token = require('./token.model');
@@ -20,6 +21,7 @@ module.exports = {
   Donation,
   News,
   Notification,
+  ProfileReport,
   Reaction,
   Report,
   Token,
