@@ -125,6 +125,7 @@ const campaignSchema = mongoose.Schema(
 
 campaignSchema.index({ status: 1, categories: 1, createdAt: -1 });
 campaignSchema.index({ organizer: 1, status: 1 });
+campaignSchema.index({ caption: 1 });
 
 campaignSchema.plugin(toJSON);
 
