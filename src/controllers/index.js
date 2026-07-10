@@ -11,6 +11,7 @@ const mobileAuthController = require('./mobileAuth.controller');
 const newsController = require('./news.controller');
 const notificationController = require('./notification.controller');
 const profileController = require('./profile.controller');
+const searchController = require('./search.controller');
 const settingsController = require('./settings.controller');
 const stripeWebhookController = require('./stripeWebhook.controller');
 
@@ -28,6 +29,7 @@ module.exports = {
   newsController,
   notificationController,
   profileController,
+  searchController,
   settingsController,
   stripeWebhookController,
 };

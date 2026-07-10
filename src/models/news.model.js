@@ -80,6 +80,8 @@ const newsSchema = mongoose.Schema(
 
 newsSchema.plugin(toJSON);
 
+newsSchema.index({ caption: 1 });
+
 const News = mongoose.model('News', newsSchema);
 
 module.exports = News;

@@ -16,6 +16,7 @@ const newsRoute = require('./news.route');
 const notificationRoute = require('./notification.route');
 const profileRoute = require('./profile.route');
 const reporterRoute = require('./reporter.route');
+const searchRoute = require('./search.route');
 const settingsRoute = require('./settings.route');
 
 const router = express.Router();
@@ -32,6 +33,7 @@ router.use('/categories', categoryRoute);
 router.use('/notifications', notificationRoute);
 router.use('/profile', profileRoute);
 router.use('/reporters', reporterRoute);
+router.use('/search', searchRoute);
 router.use('/settings', settingsRoute);
 
 // Shared (role-branches internally: mobile users/reporters vs web admin panel)

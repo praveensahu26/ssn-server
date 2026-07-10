@@ -242,6 +242,8 @@ const userSchema = mongoose.Schema(
 
 userSchema.plugin(toJSON);
 
+userSchema.index({ name: 1 });
+
 userSchema.statics.isEmailTaken = async function isEmailTaken(email, excludeUserId) {
   const user = await this.findOne({ email: email.toLowerCase() });
   return !!user && (!excludeUserId || user.id !== excludeUserId);
