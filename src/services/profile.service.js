@@ -145,6 +145,26 @@ const getFollowers = async (user, query) => {
   return { results: users, page, limit, total, totalPages: Math.ceil(total / limit) || 1 };
 };
 
+const getUserFollowers = async (targetId, query) => {
+  const user = await getUserOr404(targetId);
+  const page = query.page || 1;
+  const limit = query.limit || 20;
+  const total = user.followers.length;
+  const ids = [...user.followers].reverse().slice((page - 1) * limit, page * limit);
+  const users = await User.find({ _id: { $in: ids }, isDeleted: false }).select('name avatar bio role isVerified');
+  return { results: users, page, limit, total, totalPages: Math.ceil(total / limit) || 1 };
+};
+
+const getUserFollowing = async (targetId, query) => {
+  const user = await getUserOr404(targetId);
+  const page = query.page || 1;
+  const limit = query.limit || 20;
+  const total = user.following.length;
+  const ids = [...user.following].reverse().slice((page - 1) * limit, page * limit);
+  const users = await User.find({ _id: { $in: ids }, isDeleted: false }).select('name avatar bio role isVerified');
+  return { results: users, page, limit, total, totalPages: Math.ceil(total / limit) || 1 };
+};
+
 const followUser = async (user, targetId) => {
   if (user.id === targetId) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'You cannot follow yourself');
@@ -235,6 +255,8 @@ module.exports = {
   getMyPosts,
   getOwnProfile,
   getSavedPosts,
+  getUserFollowers,
+  getUserFollowing,
   getUserPosts,
   getUserProfile,
   removeFollower,

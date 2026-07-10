@@ -43,7 +43,7 @@ const buildStat = async (Model, baseFilter, rangeFilter) => {
 
   let changePercent = 0;
   if (previousWeek > 0) {
-    changePercent = Math.round(((weeklyNew - previousWeek) / previousWeek) * 100);
+    changePercent = Math.min(Math.round(((weeklyNew - previousWeek) / previousWeek) * 100), 100);
   } else if (weeklyNew > 0) {
     changePercent = 100;
   }

@@ -124,6 +124,28 @@ const getFollowers = catchAsync(async (req, res) => {
   );
 });
 
+const getUserFollowers = catchAsync(async (req, res) => {
+  const { results, page, limit, total, totalPages } = await profileService.getUserFollowers(req.params.userId, req.query);
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'User followers list fetched successfully',
+    { users: results },
+    { page, limit, total, totalPages },
+  );
+});
+
+const getUserFollowing = catchAsync(async (req, res) => {
+  const { results, page, limit, total, totalPages } = await profileService.getUserFollowing(req.params.userId, req.query);
+  sendSuccess(
+    res,
+    httpStatus.OK,
+    'User following list fetched successfully',
+    { users: results },
+    { page, limit, total, totalPages },
+  );
+});
+
 const followUser = catchAsync(async (req, res) => {
   await profileService.followUser(req.user, req.params.userId);
   sendSuccess(res, httpStatus.OK, 'User followed successfully');
@@ -169,6 +191,8 @@ module.exports = {
   getMyPosts,
   getOwnProfile,
   getSavedPosts,
+  getUserFollowers,
+  getUserFollowing,
   getUserPosts,
   getUserProfile,
   removeFollower,

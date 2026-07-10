@@ -36,6 +36,8 @@ router.delete('/me/followers/:userId', validate(profileValidation.userIdParam), 
 // Other user's profile — must come after /me routes
 router.get('/:userId', validate(profileValidation.getUserProfile), profileController.getUserProfile);
 router.get('/:userId/posts', validate(profileValidation.userIdPosts), profileController.getUserPosts);
+router.get('/:userId/followers', validate(profileValidation.followingList), profileController.getUserFollowers);
+router.get('/:userId/following', validate(profileValidation.followingList), profileController.getUserFollowing);
 router.post('/:userId/follow', validate(profileValidation.userIdParam), profileController.followUser);
 router.delete('/:userId/follow', validate(profileValidation.userIdParam), profileController.unfollowUser);
 router.post('/:userId/share', validate(profileValidation.userIdParam), profileController.shareProfile);
