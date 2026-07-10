@@ -25,7 +25,7 @@ const changePassword = catchAsync(async (req, res) => {
 });
 
 const deleteAccount = catchAsync(async (req, res) => {
-  await settingsService.deleteAccount(req.params.userId);
+  await settingsService.deleteAccount(req.user);
   sendSuccess(res, httpStatus.OK, 'Account deleted successfully');
 });
 

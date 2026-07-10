@@ -1236,14 +1236,13 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}/settings/account/:userId",
+              "raw": "{{baseUrl}}/settings/account",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "settings",
-                "account",
-                ":userId"
+                "account"
               ]
             },
             "body": {

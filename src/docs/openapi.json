@@ -710,6 +710,14 @@
         "summary": "Get account info",
         "security": [{ "bearerAuth": [] }],
         "responses": { "200": { "description": "OK" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "delete": {
+        "tags": ["Settings"],
+        "summary": "Delete (own) account",
+        "description": "Delete the authenticated user's account. User is identified from the bearer token.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["reason"], "properties": { "reason": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Account deleted" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
     "/settings/account/change-password": {
@@ -719,16 +727,6 @@
         "security": [{ "bearerAuth": [] }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["currentPassword", "newPassword", "confirmPassword"], "properties": { "currentPassword": { "type": "string" }, "newPassword": { "type": "string", "minLength": 8 }, "confirmPassword": { "type": "string", "description": "Must match newPassword" } } } } } },
         "responses": { "200": { "description": "Password changed" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
-      }
-    },
-    "/settings/account/{userId}": {
-      "delete": {
-        "tags": ["Settings"],
-        "summary": "Delete (own) account",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["reason"], "properties": { "reason": { "type": "string" } } } } } },
-        "responses": { "200": { "description": "Account deleted" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
     "/settings/privacy": {
