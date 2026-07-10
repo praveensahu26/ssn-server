@@ -6,7 +6,7 @@ const ApiError = require('../utils/ApiError');
 const DEFAULT_COUNTRY = 'USA';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PROFILE_SELECT =
-  'name email mobile avatar coverPhoto bio liveUrl location role status statusReasonTitle statusReasonDescription reporterProfile followers following createdAt updatedAt isDeleted gender';
+  'name email mobile avatar coverPhoto bio liveUrl location role status statusReasonTitle statusReasonDescription reporterProfile followers following createdAt updatedAt isDeleted gender isVerified';
 const CONNECTION_SELECT = 'name email avatar role';
 
 const slugify = (value = '') =>
@@ -72,6 +72,7 @@ const formatAccountBase = (user, extras = {}) => ({
     reasonDescription: user.statusReasonDescription || null,
   },
   reporterProfile: user.reporterProfile || undefined,
+  isVerified: user.isVerified || false,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
   ...extras,
@@ -219,7 +220,7 @@ const buildAccountStat = async (filter) => {
 
   let changePercent = 0;
   if (previousWeek > 0) {
-    changePercent = Math.round(((weeklyNew - previousWeek) / previousWeek) * 100);
+    changePercent = Math.min(Math.round(((weeklyNew - previousWeek) / previousWeek) * 100), 100);
   } else if (weeklyNew > 0) {
     changePercent = 100;
   }
