@@ -46,9 +46,8 @@ const changePassword = async (user, { currentPassword, newPassword }) => {
   await user.save();
 };
 
-const deleteAccount = async (userId) => {
-  const user = await User.findById(userId);
-  if (!user || user.isDeleted) {
+const deleteAccount = async (user) => {
+  if (user.isDeleted) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
   user.set({ isDeleted: true, status: 'inactive' });

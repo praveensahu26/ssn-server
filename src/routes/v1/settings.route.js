@@ -16,7 +16,7 @@ router.put('/profile', validate(settingsValidation.updateProfile), settingsContr
 // Account Settings
 router.get('/account', settingsController.getAccountInfo);
 router.put('/account/change-password', validate(settingsValidation.changePassword), settingsController.changePassword);
-router.delete('/account/:userId', validate(settingsValidation.deleteAccount), settingsController.deleteAccount);
+router.delete('/account', validate(settingsValidation.deleteAccount), settingsController.deleteAccount);
 
 // Privacy Settings
 router.get('/privacy', settingsController.getPrivacySettings);

@@ -29,9 +29,6 @@ const changePassword = {
 };
 
 const deleteAccount = {
-  params: Joi.object().keys({
-    userId: Joi.string().required(),
-  }),
   body: Joi.object().keys({
     reason: Joi.string().required(),
   }),
