@@ -127,6 +127,12 @@ const getCampaignStats = async () => {
   };
 };
 
+const populateCampaign = (campaign) =>
+  Campaign.populate(campaign, [
+    { path: 'organizer', select: 'name avatar role' },
+    { path: 'categories', select: 'name' },
+  ]);
+
 const approveCampaign = async (id) => {
   const campaign = await getCampaignOr404(id);
   if (campaign.status !== 'pending') {
@@ -138,7 +144,7 @@ const approveCampaign = async (id) => {
   notificationService
     .notifyFollowers(campaign.organizer, 'campaign_started', { campaignId: campaign.id })
     .catch(() => {});
-  return campaign;
+  return populateCampaign(campaign);
 };
 
 const rejectCampaign = async (id, rejectionReason) => {
@@ -149,7 +155,7 @@ const rejectCampaign = async (id, rejectionReason) => {
   campaign.status = 'rejected';
   campaign.rejectionReason = rejectionReason;
   await campaign.save();
-  return campaign;
+  return populateCampaign(campaign);
 };
 
 const suspendCampaign = async (id, { suspensionReasons, suspensionNote }) => {
@@ -161,7 +167,7 @@ const suspendCampaign = async (id, { suspensionReasons, suspensionNote }) => {
   campaign.suspensionReasons = suspensionReasons;
   campaign.suspensionNote = suspensionReasons.includes('Other') ? suspensionNote : null;
   await campaign.save();
-  return campaign;
+  return populateCampaign(campaign);
 };
 
 const completeCampaign = async (id) => {
@@ -172,7 +178,7 @@ const completeCampaign = async (id) => {
   campaign.status = 'completed';
   campaign.completedAt = new Date();
   await campaign.save();
-  return campaign;
+  return populateCampaign(campaign);
 };
 
 module.exports = {
