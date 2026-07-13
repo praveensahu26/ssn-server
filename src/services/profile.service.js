@@ -38,6 +38,7 @@ const getUserProfile = async (targetId, currentUserId) => {
   const user = await getUserOr404(targetId);
   const stats = await buildProfileStats(targetId);
   const isFollowing = user.followers.some((id) => id.toString() === currentUserId);
+  const isPrivate = user.privacySettings?.profileVisibility === 'private';
   const json = user.toJSON();
   // strip private fields for other users
   delete json.blockedUsers;
@@ -45,7 +46,7 @@ const getUserProfile = async (targetId, currentUserId) => {
   delete json.privacySettings;
   delete json.preferences;
   delete json.followedCategories;
-  return { ...json, ...stats, isFollowing };
+  return { ...json, ...stats, isFollowing, isPrivate };
 };
 
 const updateProfile = async (user, body) => {

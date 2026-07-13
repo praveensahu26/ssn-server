@@ -179,6 +179,8 @@ describe('GET /v1/campaigns (discover vs mine)', () => {
 
     const res = await request(app).get('/v1/campaigns?scope=discover').set('Authorization', `Bearer ${token}`).expect(200);
     expect(res.body.data.campaigns).toHaveLength(2);
+    expect(res.body.data.campaigns[0].isMyCampaign).toBe(false);
+    expect(res.body.data.campaigns[1].isMyCampaign).toBe(false);
   });
 
   test("mine scope returns the organizer's campaigns regardless of status", async () => {
@@ -206,6 +208,8 @@ describe('GET /v1/campaigns (discover vs mine)', () => {
 
     const res = await request(app).get('/v1/campaigns?scope=mine').set('Authorization', `Bearer ${token}`).expect(200);
     expect(res.body.data.campaigns).toHaveLength(2);
+    expect(res.body.data.campaigns[0].isMyCampaign).toBe(true);
+    expect(res.body.data.campaigns[1].isMyCampaign).toBe(true);
   });
 });
 
@@ -230,15 +234,17 @@ describe('GET /v1/campaigns/:id', () => {
       .set('Authorization', `Bearer ${await tokenFor(stranger)}`)
       .expect(404);
 
-    await request(app)
+    const resOrganizer = await request(app)
       .get(`/v1/campaigns/${campaign.id}`)
       .set('Authorization', `Bearer ${await tokenFor(organizer)}`)
       .expect(200);
+    expect(resOrganizer.body.data.campaign.isMyCampaign).toBe(true);
 
-    await request(app)
+    const resAdmin = await request(app)
       .get(`/v1/campaigns/${campaign.id}`)
       .set('Authorization', `Bearer ${await tokenFor(admin)}`)
       .expect(200);
+    expect(resAdmin.body.data.campaign.isMyCampaign).toBe(false);
 
     const found = await Campaign.findById(campaign.id);
     expect(found.viewsCount).toBe(2);

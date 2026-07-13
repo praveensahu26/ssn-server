@@ -25,9 +25,21 @@ const getCampaignOr404 = async (id) => {
   return campaign;
 };
 
-const attachProgress = (campaign) => {
+const attachProgress = (campaign, user) => {
   const json = campaign.toJSON ? campaign.toJSON() : campaign;
   json.progressPercent = json.goalAmount > 0 ? Math.min(100, Math.round((json.raisedAmount / json.goalAmount) * 100)) : 0;
+
+  let organizerId = '';
+  if (json.organizer) {
+    if (typeof json.organizer === 'object' && (json.organizer.id || json.organizer._id)) {
+      organizerId = (json.organizer.id || json.organizer._id).toString();
+    } else {
+      organizerId = json.organizer.toString();
+    }
+  }
+  const userIdStr = user ? (user.id || user._id || user).toString() : null;
+  json.isMyCampaign = userIdStr ? (organizerId === userIdStr) : false;
+
   return json;
 };
 
@@ -79,7 +91,7 @@ const listCampaigns = async (user, query) => {
     ['organizer', 'name avatar role'],
     ['categories', 'name'],
   ]);
-  paginated.results = paginated.results.map(attachProgress);
+  paginated.results = paginated.results.map((campaign) => attachProgress(campaign, user));
   return paginated;
 };
 
@@ -93,7 +105,7 @@ const getCampaignById = async (user, id) => {
 
   await Campaign.findByIdAndUpdate(id, { $inc: { viewsCount: 1 } });
   const populated = await Campaign.findById(id).populate('organizer', 'name avatar role').populate('categories', 'name');
-  return attachProgress(populated);
+  return attachProgress(populated, user);
 };
 
 const incrementShareCount = async (id) => {
