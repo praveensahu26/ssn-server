@@ -38,7 +38,18 @@ const getUserProfile = async (targetId, currentUserId) => {
   const user = await getUserOr404(targetId);
   const stats = await buildProfileStats(targetId);
   const isFollowing = user.followers.some((id) => id.toString() === currentUserId);
-  const isPrivate = user.privacySettings?.profileVisibility === 'private';
+  const visibility = user.privacySettings?.profileVisibility || 'everyone';
+  const isOwner = targetId.toString() === currentUserId.toString();
+  let isPrivate = false;
+  if (isOwner) {
+    isPrivate = false;
+  } else if (visibility === 'private') {
+    isPrivate = true;
+  } else if (visibility === 'connections_only') {
+    isPrivate = !isFollowing;
+  } else {
+    isPrivate = false;
+  }
   const json = user.toJSON();
   // strip private fields for other users
   delete json.blockedUsers;
