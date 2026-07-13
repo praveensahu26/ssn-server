@@ -195,9 +195,9 @@ const followUser = async (user, targetId) => {
 
 const unfollowUser = async (user, targetId) => {
   const target = await User.findById(targetId);
-  user.set({ following: user.following.filter((id) => id.toString() !== targetId) });
+  user.following.pull(targetId);
   if (target) {
-    target.set({ followers: target.followers.filter((id) => id.toString() !== user.id) });
+    target.followers.pull(user.id);
     await Promise.all([user.save(), target.save()]);
   } else {
     await user.save();
@@ -206,9 +206,9 @@ const unfollowUser = async (user, targetId) => {
 
 const removeFollower = async (user, targetId) => {
   const target = await User.findById(targetId);
-  user.set({ followers: user.followers.filter((id) => id.toString() !== targetId) });
+  user.followers.pull(targetId);
   if (target) {
-    target.set({ following: target.following.filter((id) => id.toString() !== user.id) });
+    target.following.pull(user.id);
     await Promise.all([user.save(), target.save()]);
   } else {
     await user.save();
