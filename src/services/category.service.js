@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 
-const { Category, User } = require('../models');
+const { Campaign, Category, News, User } = require('../models');
 const ApiError = require('../utils/ApiError');
 
 const listCategories = () => Category.find().sort({ name: 1 });
@@ -39,6 +39,14 @@ const updateCategory = async (id, updates) => {
 const deleteCategory = async (id) => {
   const category = await getCategoryById(id);
   await category.deleteOne();
+
+  // Posts/campaigns aren't deleted just because a tag they carried was removed — only the
+  // dangling category reference is pulled, everywhere it could have been stored.
+  await Promise.all([
+    News.updateMany({ categories: id }, { $pull: { categories: id } }),
+    Campaign.updateMany({ categories: id }, { $pull: { categories: id } }),
+    User.updateMany({ followedCategories: id }, { $pull: { followedCategories: id } }),
+  ]);
 };
 
 const followCategory = async (user, categoryId) => {

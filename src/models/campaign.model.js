@@ -66,8 +66,10 @@ const campaignSchema = mongoose.Schema(
       },
     ],
     status: {
+      // 'removed' is set when the organizer's account is deleted — distinct from 'suspended'
+      // (an admin moderation action) so the two cases stay distinguishable in the data.
       type: String,
-      enum: ['pending', 'active', 'rejected', 'completed', 'suspended'],
+      enum: ['pending', 'active', 'rejected', 'completed', 'suspended', 'removed'],
       default: 'pending',
     },
     rejectionReason: {
