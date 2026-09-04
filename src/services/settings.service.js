@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
+const { hideAccountContent } = require('./adminAccount.service');
 
 const getProfile = async (user) => User.findById(user.id).populate('followedCategories', 'name description');
 
@@ -52,6 +53,7 @@ const deleteAccount = async (user) => {
   }
   user.set({ isDeleted: true, status: 'inactive' });
   await user.save();
+  await hideAccountContent(user.id);
 };
 
 const getPrivacySettings = (user) => user.privacySettings;

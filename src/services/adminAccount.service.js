@@ -360,23 +360,34 @@ const updateStatus = async (id, status, payload = {}) => {
   });
 };
 
+// Hides a deleted user's content instead of removing it, so it can still be audited/restored:
+// News posts are soft-deleted the same way moderation already does. Campaigns that were still
+// publicly visible ('pending' shows to the organizer only, but 'active'/'completed' are public)
+// move to a 'removed' status; 'rejected'/'suspended' are left alone since those already record
+// a distinct admin decision and are already hidden from the public feed.
+const hideAccountContent = async (userId) => {
+  await Promise.all([
+    News.updateMany({ author: userId, status: { $ne: 'deleted' } }, { status: 'deleted' }),
+    Campaign.updateMany({ organizer: userId, status: { $in: ['pending', 'active', 'completed'] } }, { status: 'removed' }),
+  ]);
+};
+
 const softDeleteAccount = async (id) => {
   const user = await getAccountOr404(id);
   user.set({ isDeleted: true, status: 'inactive' });
   await user.save();
+  await hideAccountContent(user.id);
 };
 
 const bulkUpdateStatus = async (ids, status) => {
-  await User.updateMany(
-    { _id: { $in: ids }, isDeleted: false },
-    { status }
-  );
+  await User.updateMany({ _id: { $in: ids }, isDeleted: false }, { status });
 };
 
 module.exports = {
   bulkUpdateStatus,
   getAccount,
   getAccountStats,
+  hideAccountContent,
   listAccounts,
   listCampaigns,
   listFollowers,
